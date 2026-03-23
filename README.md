@@ -1,4 +1,4 @@
-# Card-# Self-Hosted Trading Card Collection MVP Spec
+# Self-Hosted Trading Card Collection MVP Spec
 
 ## Goal
 
