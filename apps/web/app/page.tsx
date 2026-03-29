@@ -83,7 +83,7 @@ export default async function HomePage({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.map((item:any) => (
                 <tr key={item.id} className="border-b align-top">
                   <td className="p-2">
                     <div className="font-medium">{item.card.player_name || item.card.character_name || "Unknown"}</div>
