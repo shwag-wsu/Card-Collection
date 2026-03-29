@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Card {
+  id             String           @id @default(uuid()) @db.Uuid
+  game           String
+  sport          String?
+  year           Int?
+  manufacturer   String?
+  set_name       String
+  subset_name    String?
+  player_name    String?
+  character_name String?
+  card_number    String?
+  parallel       String?
+  variation      String?
+  language       String?
+  notes          String?
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+
+  collection_items CollectionItem[]
+
+  @@index([game, set_name])
+  @@index([player_name])
+  @@index([character_name])
+  @@index([year, card_number])
+  @@map("cards")
+}
+
+model CollectionItem {
+  id                  String          @id @default(uuid()) @db.Uuid
+  card_id             String          @db.Uuid
+  quantity            Int             @default(1)
+  purchase_price      Decimal?        @db.Decimal(12, 2)
+  purchase_date       DateTime?       @db.Date
+  estimated_raw_value Decimal?        @db.Decimal(12, 2)
+  ownership_status    String          @default("owned")
+  storage_box         String?
+  notes               String?
+  front_image_path    String?
+  back_image_path     String?
+  front_thumb_path    String?
+  back_thumb_path     String?
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  card            Card            @relation(fields: [card_id], references: [id], onDelete: Cascade)
+  price_snapshots PriceSnapshot[]
+  grade_estimates GradeEstimate[]
+  grading_quotes  GradingQuote[]
+  roi_scenarios   RoiScenario[]
+
+  @@index([card_id])
+  @@index([ownership_status])
+  @@map("collection_items")
+}
+
+model PriceSnapshot {
+  id                 String         @id @default(uuid()) @db.Uuid
+  collection_item_id String         @db.Uuid
+  provider           String
+  currency           String         @default("USD")
+  raw_low            Decimal?       @db.Decimal(12, 2)
+  raw_mid            Decimal?       @db.Decimal(12, 2)
+  raw_high           Decimal?       @db.Decimal(12, 2)
+  grade_8_value      Decimal?       @db.Decimal(12, 2)
+  grade_9_value      Decimal?       @db.Decimal(12, 2)
+  grade_10_value     Decimal?       @db.Decimal(12, 2)
+  confidence         Decimal?       @db.Decimal(5, 2)
+  source_note        String?
+  captured_at        DateTime       @default(now())
+
+  collection_item CollectionItem @relation(fields: [collection_item_id], references: [id], onDelete: Cascade)
+
+  @@index([collection_item_id])
+  @@index([provider])
+  @@index([captured_at])
+  @@map("price_snapshots")
+}
+
+model GradeEstimate {
+  id                   String         @id @default(uuid()) @db.Uuid
+  collection_item_id   String         @db.Uuid
+  analyzer_version     String
+  image_quality_score  Decimal?       @db.Decimal(5, 2)
+  blur_flag            Boolean        @default(false)
+  glare_flag           Boolean        @default(false)
+  skew_flag            Boolean        @default(false)
+  centering_score      Decimal?       @db.Decimal(5, 2)
+  corners_score        Decimal?       @db.Decimal(5, 2)
+  edges_score          Decimal?       @db.Decimal(5, 2)
+  surface_score        Decimal?       @db.Decimal(5, 2)
+  predicted_grade_low  Decimal?       @db.Decimal(4, 1)
+  predicted_grade_high Decimal?       @db.Decimal(4, 1)
+  confidence           Decimal?       @db.Decimal(5, 2)
+  summary              String?
+  created_at           DateTime       @default(now())
+
+  collection_item CollectionItem @relation(fields: [collection_item_id], references: [id], onDelete: Cascade)
+
+  @@index([collection_item_id])
+  @@index([created_at])
+  @@map("grade_estimates")
+}
+
+model GradingQuote {
+  id                 String         @id @default(uuid()) @db.Uuid
+  collection_item_id String         @db.Uuid
+  grader             String         @default("PSA")
+  service_level      String
+  declared_value     Decimal?       @db.Decimal(12, 2)
+  grading_fee        Decimal        @db.Decimal(12, 2)
+  shipping_to_grader Decimal?       @db.Decimal(12, 2)
+  return_shipping    Decimal?       @db.Decimal(12, 2)
+  insurance_cost     Decimal?       @db.Decimal(12, 2)
+  other_costs        Decimal?       @db.Decimal(12, 2)
+  total_cost         Decimal        @db.Decimal(12, 2)
+  created_at         DateTime       @default(now())
+
+  collection_item CollectionItem @relation(fields: [collection_item_id], references: [id], onDelete: Cascade)
+
+  @@index([collection_item_id])
+  @@map("grading_quotes")
+}
+
+model RoiScenario {
+  id                         String         @id @default(uuid()) @db.Uuid
+  collection_item_id         String         @db.Uuid
+  grade_label                String
+  expected_sale_price        Decimal        @db.Decimal(12, 2)
+  grading_cost               Decimal        @db.Decimal(12, 2)
+  selling_fee_pct            Decimal?       @db.Decimal(5, 2)
+  selling_fee_amount         Decimal?       @db.Decimal(12, 2)
+  net_after_fees             Decimal        @db.Decimal(12, 2)
+  profit_vs_raw_sale         Decimal?       @db.Decimal(12, 2)
+  profit_vs_total_cost_basis Decimal?       @db.Decimal(12, 2)
+  calculated_at              DateTime       @default(now())
+
+  collection_item CollectionItem @relation(fields: [collection_item_id], references: [id], onDelete: Cascade)
+
+  @@index([collection_item_id])
+  @@index([calculated_at])
+  @@map("roi_scenarios")
+}
