@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  analyzer:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.analyzer
+    restart: unless-stopped
+    environment:
+      STORAGE_ROOT: ${STORAGE_ROOT}
+      LOG_LEVEL: ${ANALYZER_LOG_LEVEL}
+    volumes:
+      - ./storage:${STORAGE_ROOT}
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - db
+      - analyzer
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      ANALYZER_URL: ${ANALYZER_URL}
+      STORAGE_ROOT: ${STORAGE_ROOT}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+    volumes:
+      - ./storage:${STORAGE_ROOT}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
