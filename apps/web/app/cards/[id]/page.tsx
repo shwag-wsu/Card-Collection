@@ -1,7 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { calculateRoiScenarios, createGradingQuote, createPriceSnapshot } from "../../actions";
 import { prisma } from "../../../lib/prisma";
+
+const formatMoney = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined) return "-";
+  const amount = typeof value === "string" ? Number(value) : Number(value);
+  if (Number.isNaN(amount)) return "-";
+  return `$${amount.toFixed(2)}`;
+};
 
 export default async function CardDetailPage({ params }: { params: { id: string } }) {
   const card = await prisma.card.findUnique({
@@ -13,6 +21,18 @@ export default async function CardDetailPage({ params }: { params: { id: string 
           grade_estimates: {
             orderBy: { created_at: "desc" },
             take: 1
+          },
+          price_snapshots: {
+            orderBy: { captured_at: "desc" },
+            take: 1
+          },
+          grading_quotes: {
+            orderBy: { created_at: "desc" },
+            take: 1
+          },
+          roi_scenarios: {
+            orderBy: { calculated_at: "desc" },
+            take: 4
           }
         }
       }
@@ -41,6 +61,9 @@ export default async function CardDetailPage({ params }: { params: { id: string 
         <ul className="space-y-2">
           {card.collection_items.map((item) => {
             const latestEstimate = item.grade_estimates[0];
+            const latestSnapshot = item.price_snapshots[0];
+            const latestQuote = item.grading_quotes[0];
+            const scenarios = item.roi_scenarios;
 
             return (
               <li key={item.id} className="space-y-3 rounded border p-3 text-sm">
@@ -92,6 +115,115 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                     <p className="mt-1 text-xs text-indigo-800">
                       Disclaimer: This AI estimate is for guidance only and is not an official PSA grade.
                     </p>
+                  </div>
+                )}
+
+                <div className="grid gap-3 lg:grid-cols-3">
+                  <form action={createPriceSnapshot} className="space-y-2 rounded-md border bg-slate-50 p-3">
+                    <h3 className="font-medium">Manual Price Snapshot</h3>
+                    <input type="hidden" name="collection_item_id" value={item.id} />
+                    <input type="hidden" name="card_id" value={card.id} />
+                    <input name="provider" placeholder="Provider (manual, eBay, etc.)" defaultValue="manual" />
+                    <input name="currency" placeholder="Currency" defaultValue="USD" />
+                    <input name="raw_low" type="number" step="0.01" placeholder="Raw low" />
+                    <input name="raw_mid" type="number" step="0.01" placeholder="Raw mid" />
+                    <input name="raw_high" type="number" step="0.01" placeholder="Raw high" />
+                    <input name="grade_8_value" type="number" step="0.01" placeholder="PSA 8 value" />
+                    <input name="grade_9_value" type="number" step="0.01" placeholder="PSA 9 value" />
+                    <input name="grade_10_value" type="number" step="0.01" placeholder="PSA 10 value" />
+                    <input name="source_note" placeholder="Source note" />
+                    <button className="rounded-md bg-slate-900 px-3 py-2 text-xs font-medium text-white">
+                      Save Price Snapshot
+                    </button>
+                  </form>
+
+                  <form action={createGradingQuote} className="space-y-2 rounded-md border bg-slate-50 p-3">
+                    <h3 className="font-medium">Grading Quote</h3>
+                    <input type="hidden" name="collection_item_id" value={item.id} />
+                    <input type="hidden" name="card_id" value={card.id} />
+                    <input name="grader" placeholder="Grader" defaultValue="PSA" />
+                    <input name="service_level" placeholder="Service level" defaultValue="Value" />
+                    <input name="declared_value" type="number" step="0.01" placeholder="Declared value" />
+                    <input name="grading_fee" type="number" step="0.01" placeholder="Grading fee" required />
+                    <input name="shipping_to_grader" type="number" step="0.01" placeholder="Shipping to grader" />
+                    <input name="return_shipping" type="number" step="0.01" placeholder="Return shipping" />
+                    <input name="insurance_cost" type="number" step="0.01" placeholder="Insurance" />
+                    <input name="other_costs" type="number" step="0.01" placeholder="Other costs" />
+                    <button className="rounded-md bg-slate-900 px-3 py-2 text-xs font-medium text-white">
+                      Save Grading Quote
+                    </button>
+                  </form>
+
+                  <form action={calculateRoiScenarios} className="space-y-2 rounded-md border bg-slate-50 p-3">
+                    <h3 className="font-medium">ROI Scenarios</h3>
+                    <input type="hidden" name="collection_item_id" value={item.id} />
+                    <input type="hidden" name="card_id" value={card.id} />
+                    <p className="text-xs text-slate-600">
+                      Calculates raw, PSA 8, PSA 9, and PSA 10 using the latest snapshot and quote.
+                    </p>
+                    <input
+                      name="selling_fee_pct"
+                      type="number"
+                      step="0.01"
+                      defaultValue={13}
+                      placeholder="Selling fee %"
+                    />
+                    <button className="rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white">
+                      Calculate ROI
+                    </button>
+                  </form>
+                </div>
+
+                {(latestSnapshot || latestQuote || scenarios.length > 0) && (
+                  <div className="space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-3">
+                    <h3 className="font-medium text-emerald-900">Latest Manual Inputs & ROI</h3>
+
+                    {latestSnapshot && (
+                      <p className="text-xs text-emerald-900">
+                        Snapshot ({latestSnapshot.provider}): Raw mid {formatMoney(latestSnapshot.raw_mid?.toString())} · PSA 8{" "}
+                        {formatMoney(latestSnapshot.grade_8_value?.toString())} · PSA 9{" "}
+                        {formatMoney(latestSnapshot.grade_9_value?.toString())} · PSA 10{" "}
+                        {formatMoney(latestSnapshot.grade_10_value?.toString())}
+                      </p>
+                    )}
+
+                    {latestQuote && (
+                      <p className="text-xs text-emerald-900">
+                        Quote ({latestQuote.grader} {latestQuote.service_level}): total grading cost{" "}
+                        {formatMoney(latestQuote.total_cost.toString())}
+                      </p>
+                    )}
+
+                    {scenarios.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-emerald-200 text-left">
+                              <th className="p-1">Scenario</th>
+                              <th className="p-1">Sale</th>
+                              <th className="p-1">Selling Fees</th>
+                              <th className="p-1">Grading Cost</th>
+                              <th className="p-1">Net Proceeds</th>
+                              <th className="p-1">Profit vs Raw</th>
+                              <th className="p-1">Profit vs Cost Basis</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scenarios.map((scenario) => (
+                              <tr key={scenario.id} className="border-b border-emerald-100">
+                                <td className="p-1 font-medium">{scenario.grade_label}</td>
+                                <td className="p-1">{formatMoney(scenario.expected_sale_price.toString())}</td>
+                                <td className="p-1">{formatMoney(scenario.selling_fee_amount?.toString())}</td>
+                                <td className="p-1">{formatMoney(scenario.grading_cost.toString())}</td>
+                                <td className="p-1">{formatMoney(scenario.net_after_fees.toString())}</td>
+                                <td className="p-1">{formatMoney(scenario.profit_vs_raw_sale?.toString())}</td>
+                                <td className="p-1">{formatMoney(scenario.profit_vs_total_cost_basis?.toString())}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </li>
