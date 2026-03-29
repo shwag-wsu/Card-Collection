@@ -32,7 +32,7 @@ services:
     volumes:
       - ./storage:${STORAGE_ROOT}
     ports:
-      - "8000:8000"
+      - "8500:8000"
     healthcheck:
       test:
         [
