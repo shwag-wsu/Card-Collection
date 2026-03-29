@@ -1,6 +1,8 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "../../../../lib/prisma";
 import { updateCollectionItem } from "../../../actions";
+import { ImageUploadForm } from "./image-upload-form";
 
 export default async function EditCollectionItemPage({ params }: { params: { id: string } }) {
   const item = await prisma.collectionItem.findUnique({
@@ -58,6 +60,22 @@ export default async function EditCollectionItemPage({ params }: { params: { id:
 
         <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">Update Item</button>
       </form>
+
+      {(item.front_thumb_path || item.back_thumb_path) && (
+        <section className="space-y-2 rounded-lg border bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-medium">Current images</h2>
+          <div className="flex flex-wrap gap-4">
+            {item.front_thumb_path && (
+              <Image src={item.front_thumb_path} alt="Front thumbnail" width={180} height={180} className="rounded border" />
+            )}
+            {item.back_thumb_path && (
+              <Image src={item.back_thumb_path} alt="Back thumbnail" width={180} height={180} className="rounded border" />
+            )}
+          </div>
+        </section>
+      )}
+
+      <ImageUploadForm itemId={item.id} />
     </main>
   );
 }

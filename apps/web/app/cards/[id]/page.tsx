@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "../../../lib/prisma";
@@ -29,9 +30,38 @@ export default async function CardDetailPage({ params }: { params: { id: string 
         <h2 className="mb-2 text-lg font-medium">Collection Items</h2>
         <ul className="space-y-2">
           {card.collection_items.map((item) => (
-            <li key={item.id} className="rounded border p-3 text-sm">
-              Qty: {item.quantity} · Status: <span className="capitalize">{item.ownership_status}</span> · Purchase:{" "}
-              {item.purchase_price ? `$${item.purchase_price.toString()}` : "-"}
+            <li key={item.id} className="space-y-3 rounded border p-3 text-sm">
+              <div>
+                Qty: {item.quantity} · Status: <span className="capitalize">{item.ownership_status}</span> · Purchase:{" "}
+                {item.purchase_price ? `$${item.purchase_price.toString()}` : "-"}
+              </div>
+
+              {(item.front_thumb_path || item.back_thumb_path) && (
+                <div className="flex flex-wrap gap-3">
+                  {item.front_thumb_path && (
+                    <a href={item.front_image_path || item.front_thumb_path} target="_blank" rel="noreferrer">
+                      <Image
+                        src={item.front_thumb_path}
+                        alt="Front preview"
+                        width={140}
+                        height={140}
+                        className="rounded border"
+                      />
+                    </a>
+                  )}
+                  {item.back_thumb_path && (
+                    <a href={item.back_image_path || item.back_thumb_path} target="_blank" rel="noreferrer">
+                      <Image
+                        src={item.back_thumb_path}
+                        alt="Back preview"
+                        width={140}
+                        height={140}
+                        className="rounded border"
+                      />
+                    </a>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
