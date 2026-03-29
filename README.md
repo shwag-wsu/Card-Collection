@@ -1,6 +1,6 @@
 # Card Collection MVP (Initial Scaffold)
 
-This repository contains a clean, local-first scaffold for a self-hosted trading card collection MVP.
+This repository contains a local-first scaffold for a self-hosted trading card collection MVP.
 
 ## Tech Stack
 
@@ -27,41 +27,50 @@ docker-compose.yml
 README.md
 ```
 
-## Included in This Initial Setup
+## Docker Setup Included
 
-- Docker Compose with `web`, `analyzer`, and `db` services.
-- Next.js TypeScript app scaffold with a basic landing page.
-- FastAPI analyzer scaffold with:
-  - `GET /health`
-  - `POST /analyze/normalize`
-  - `POST /analyze/quality`
-  - `POST /analyze/card-images`
-- Local storage directory scaffold with `.gitkeep` placeholders.
+- `docker-compose.yml` with 3 services:
+  - `web` on `http://localhost:3000`
+  - `analyzer` on `http://localhost:8000`
+  - `db` (PostgreSQL 16) on `localhost:5432`
+- Service Dockerfiles:
+  - `infra/docker/Dockerfile.web`
+  - `infra/docker/Dockerfile.analyzer`
+- Host-mounted image storage:
+  - `./storage` on host mounted to `${STORAGE_ROOT}` in `web` and `analyzer`
+- Environment variable loading from `.env`
+- Health checks for `db`, `analyzer`, and `web`
 
-## Quick Start
+## Startup Instructions
 
-1. Copy environment variables:
+1. Create your local environment file:
 
    ```bash
    cp .env.example .env
    ```
 
-2. Build and start services:
+2. (Optional) Review/edit `.env` values.
+
+3. Build and start everything:
 
    ```bash
    docker compose up --build
    ```
 
-3. Open locally:
+4. Verify services:
 
-   - Web: http://localhost:3000
+   - Web app: http://localhost:3000
    - Analyzer health: http://localhost:8000/health
-   - PostgreSQL: localhost:5432
+   - PostgreSQL: `localhost:5432`
+
+5. Stop services:
+
+   ```bash
+   docker compose down
+   ```
 
 ## Notes
 
-- This is intentionally a **minimal scaffold**.
-- Advanced features (CRUD, uploads, migrations, pricing providers, ROI workflows, etc.) are not implemented yet.
-- Data persistence:
-  - PostgreSQL data persists in Docker volume `postgres_data`.
-  - Image files persist in host directory `./storage`.
+- PostgreSQL data is persisted in Docker volume `postgres_data`.
+- Card image files are persisted on disk under `./storage`.
+- `web` waits for healthy `db` and `analyzer` before starting.
