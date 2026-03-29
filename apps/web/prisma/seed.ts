@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -52,24 +52,24 @@ async function main() {
       {
         card_id: cards[0].id,
         quantity: 1,
-        purchase_price: new Prisma.Decimal('220.00'),
-        estimated_raw_value: new Prisma.Decimal('325.00'),
+        purchase_price: '220.00',
+        estimated_raw_value: '325.00',
         ownership_status: 'owned',
         storage_box: 'Pokemon Binder A',
       },
       {
         card_id: cards[1].id,
         quantity: 2,
-        purchase_price: new Prisma.Decimal('90.00'),
-        estimated_raw_value: new Prisma.Decimal('160.00'),
+        purchase_price: '90.00',
+        estimated_raw_value: '160.00',
         ownership_status: 'owned',
         storage_box: 'Sports Box 1',
       },
       {
         card_id: cards[2].id,
         quantity: 1,
-        purchase_price: new Prisma.Decimal('750.00'),
-        estimated_raw_value: new Prisma.Decimal('1000.00'),
+        purchase_price: '750.00',
+        estimated_raw_value: '1000.00',
         ownership_status: 'owned',
         storage_box: 'Sports Box 1',
       },
