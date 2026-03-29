@@ -41,7 +41,7 @@ export function ImageUploadForm({ itemId }: Props) {
         return;
       }
 
-      setSuccess("Images uploaded successfully.");
+      setSuccess(payload.analysis ? "Images uploaded and AI pre-grade estimate generated." : "Images uploaded successfully.");
       form.reset();
       router.refresh();
     });
