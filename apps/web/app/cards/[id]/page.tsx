@@ -209,7 +209,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                             </tr>
                           </thead>
                           <tbody>
-                            {scenarios.map((scenario) => (
+                            {scenarios.map((scenario: (typeof scenarios)[number]) => (
                               <tr key={scenario.id} className="border-b border-emerald-100">
                                 <td className="p-1 font-medium">{scenario.grade_label}</td>
                                 <td className="p-1">{formatMoney(scenario.expected_sale_price.toString())}</td>
