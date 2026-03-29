@@ -59,7 +59,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
       <section className="rounded-lg border bg-white p-5 shadow-sm">
         <h2 className="mb-2 text-lg font-medium">Collection Items</h2>
         <ul className="space-y-2">
-          {card.collection_items.map((item) => {
+          {card.collection_items.map((item: (typeof card.collection_items)[number]) => {
             const latestEstimate = item.grade_estimates[0];
             const latestSnapshot = item.price_snapshots[0];
             const latestQuote = item.grading_quotes[0];
