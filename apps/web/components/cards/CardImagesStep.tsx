@@ -38,7 +38,12 @@ export function CardImagesStep({ details, isSubmitting, error, onBack, onSuccess
 
       const payload = await response.json();
       if (!response.ok) {
-        setError(payload.error || "Unable to create card with images.");
+        if (payload?.card && payload?.collectionItemId) {
+          onSuccess(payload as CardWizardResult);
+          return;
+        }
+
+        setError(payload.error || payload.gradingError || "Unable to create card with images.");
         return;
       }
 

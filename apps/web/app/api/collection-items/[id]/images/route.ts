@@ -122,7 +122,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       gradeEstimate = await prisma.gradeEstimate.create({
         data: {
           collection_item_id: params.id,
-          analyzer_version: analysis.analyzer_version ?? "mock-analyzer-v0.2.0",
+          analyzer_version: analysis.analyzer_version ?? "ai-pregrade-v1",
           image_quality_score: analysis.image_quality_score,
           blur_flag: analysis.blur_flag ?? false,
           glare_flag: analysis.glare_flag ?? false,

@@ -20,14 +20,31 @@ export type CardDetailsInput = {
 export type CardWizardResult = {
   card: { id: string; player: string | null };
   collectionItemId: string;
+  gradingError?: string | null;
+  marketError?: string | null;
   aiPreGradeEstimate: {
     aiPreGradeEstimate: string;
     estimatedGradeRange: string;
     confidence: string | null;
     detectedIssues: string[];
     rationale: string | null;
-  };
-  comps: Array<{ grade: "PSA 8" | "PSA 9" | "PSA 10"; value: number | null }>;
+    subscores: {
+      centering: number;
+      corners: number;
+      edges: number;
+      surface: number;
+    };
+    fallbackUsed: boolean;
+  } | null;
+  comps: Array<{
+    grade: "PSA 8" | "PSA 9" | "PSA 10";
+    source: "eBay";
+    avgPrice: number | null;
+    lowPrice: number | null;
+    highPrice: number | null;
+    sampleSize: number;
+    currency: string;
+  }> | null;
 };
 
 const initialValues: CardDetailsInput = {
