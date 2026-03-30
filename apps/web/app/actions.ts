@@ -23,7 +23,7 @@ export async function createCardAndCollectionItem(formData: FormData) {
     data: {
       game: "Sports",
       sport: formData.get("sport")?.toString() || "Unknown",
-      set_name: formData.get("set_name")?.toString() || "Unknown Set",
+      set_name: formData.get("set_name")?.toString().trim() || "Unknown Set",
       year: toOptionalNumber(formData.get("year")),
       manufacturer: toOptionalString(formData.get("manufacturer")),
       player_name: toOptionalString(formData.get("player_name")),
@@ -50,11 +50,8 @@ export async function updateCollectionItem(formData: FormData) {
   await prisma.collectionItem.update({
     where: { id },
     data: {
-      quantity: toOptionalNumber(formData.get("quantity")) ?? 1,
-      purchase_price: toOptionalNumber(formData.get("purchase_price")),
-      ownership_status: formData.get("ownership_status")?.toString() || "owned",
-      storage_box: toOptionalString(formData.get("storage_box")),
-      notes: toOptionalString(formData.get("notes"))
+      notes: toOptionalString(formData.get("notes")),
+      tags: toOptionalString(formData.get("tags"))
     }
   });
 
