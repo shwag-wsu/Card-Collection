@@ -21,12 +21,12 @@ const toCurrency = (amount: number) => Number(amount.toFixed(2));
 export async function createCardAndCollectionItem(formData: FormData) {
   const card = await prisma.card.create({
     data: {
-      game: formData.get("game")?.toString() || "Unknown",
+      game: "Sports",
+      sport: formData.get("sport")?.toString() || "Unknown",
       set_name: formData.get("set_name")?.toString() || "Unknown Set",
       year: toOptionalNumber(formData.get("year")),
       manufacturer: toOptionalString(formData.get("manufacturer")),
       player_name: toOptionalString(formData.get("player_name")),
-      character_name: toOptionalString(formData.get("character_name")),
       card_number: toOptionalString(formData.get("card_number"))
     }
   });
@@ -34,10 +34,8 @@ export async function createCardAndCollectionItem(formData: FormData) {
   await prisma.collectionItem.create({
     data: {
       card_id: card.id,
-      quantity: toOptionalNumber(formData.get("quantity")) ?? 1,
-      purchase_price: toOptionalNumber(formData.get("purchase_price")),
-      ownership_status: formData.get("ownership_status")?.toString() || "owned",
-      notes: toOptionalString(formData.get("item_notes"))
+      quantity: 1,
+      ownership_status: "owned"
     }
   });
 
