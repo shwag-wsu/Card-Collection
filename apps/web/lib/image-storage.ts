@@ -1,3 +1,4 @@
+
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -10,9 +11,9 @@ const extensionByMimeType: Record<string, string> = {
   "image/webp": ".webp"
 };
 
-const uploadsRoot = path.join(process.cwd(), "public", "uploads");
-const originalsDirectory = path.join(uploadsRoot, "originals");
-const thumbsDirectory = path.join(uploadsRoot, "thumbs");
+const storageRoot = process.env.STORAGE_ROOT || path.join(process.cwd(), "storage");
+const originalsDirectory = path.join(storageRoot, "originals");
+const thumbsDirectory = path.join(storageRoot, "thumbnails");
 
 export type ImageSide = "front" | "back";
 
@@ -29,8 +30,10 @@ const ensureDirectories = async () => {
 const getPaths = (collectionItemId: string, side: ImageSide, extension: string) => ({
   originalFilePath: path.join(originalsDirectory, `${collectionItemId}-${side}${extension}`),
   thumbFilePath: path.join(thumbsDirectory, `${collectionItemId}-${side}-thumb${extension}`),
-  originalPath: `/uploads/originals/${collectionItemId}-${side}${extension}`,
-  thumbPath: `/uploads/thumbs/${collectionItemId}-${side}-thumb${extension}`
+
+  // URLs served by a route handler
+  originalPath: `/api/images/originals/${collectionItemId}-${side}${extension}`,
+  thumbPath: `/api/images/thumbnails/${collectionItemId}-${side}-thumb${extension}`
 });
 
 export const validateImageFile = (file: File) => {
@@ -44,6 +47,8 @@ export const validateImageFile = (file: File) => {
 };
 
 export const removeExistingSideFiles = async (collectionItemId: string, side: ImageSide) => {
+  await ensureDirectories();
+
   const existingOriginals = await fs.readdir(originalsDirectory).catch(() => [] as string[]);
   const existingThumbs = await fs.readdir(thumbsDirectory).catch(() => [] as string[]);
   const prefix = `${collectionItemId}-${side}`;
@@ -67,13 +72,18 @@ export const storeImageForCollectionItem = async (
   await ensureDirectories();
 
   const extension = extensionByMimeType[file.type];
-  const { originalFilePath, thumbFilePath, originalPath, thumbPath } = getPaths(collectionItemId, side, extension);
+  const { originalFilePath, thumbFilePath, originalPath, thumbPath } = getPaths(
+    collectionItemId,
+    side,
+    extension
+  );
 
   await removeExistingSideFiles(collectionItemId, side);
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
+  // For now thumbnail is same file; later replace with real resize
   await fs.writeFile(originalFilePath, buffer);
   await fs.writeFile(thumbFilePath, buffer);
 
