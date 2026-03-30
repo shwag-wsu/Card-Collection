@@ -24,6 +24,22 @@ type AnalyzerResponse = {
   summary?: string;
 };
 
+type SafeEstimateResponse = {
+  id: string;
+  analyzerVersion: string;
+  aiPreGradeEstimate: {
+    estimatedGradeRange: {
+      low: number | null;
+      high: number | null;
+    };
+    confidenceScore: number | null;
+    rationale: string | null;
+    detectedIssues: string[];
+  };
+  disclaimer: string;
+  createdAt: Date;
+};
+
 const ANALYZER_URL = process.env.ANALYZER_URL;
 
 async function requestCardImageAnalysis(payload: AnalyzerPayload): Promise<AnalyzerResponse | null> {
@@ -126,13 +142,43 @@ export async function POST(request: Request, { params }: { params: { id: string 
           predicted_grade_low: true,
           predicted_grade_high: true,
           confidence: true,
+          blur_flag: true,
+          glare_flag: true,
+          skew_flag: true,
           summary: true,
           created_at: true
         }
       });
     }
 
-    return NextResponse.json({ item: updatedItem, analysis: gradeEstimate });
+    const safeAnalysis: SafeEstimateResponse | null = gradeEstimate
+      ? {
+          id: gradeEstimate.id,
+          analyzerVersion: gradeEstimate.analyzer_version,
+          aiPreGradeEstimate: {
+            estimatedGradeRange: {
+              low: gradeEstimate.predicted_grade_low ? Number(gradeEstimate.predicted_grade_low) : null,
+              high: gradeEstimate.predicted_grade_high ? Number(gradeEstimate.predicted_grade_high) : null
+            },
+            confidenceScore: gradeEstimate.confidence ? Number(gradeEstimate.confidence) : null,
+            rationale: gradeEstimate.summary ?? null,
+            detectedIssues: [
+              gradeEstimate.blur_flag ? "blur" : null,
+              gradeEstimate.glare_flag ? "glare" : null,
+              gradeEstimate.skew_flag ? "skew" : null
+            ].filter(Boolean) as string[]
+          },
+          disclaimer:
+            "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade.",
+          createdAt: gradeEstimate.created_at
+        }
+      : null;
+
+    return NextResponse.json({
+      item: updatedItem,
+      analysis: gradeEstimate,
+      aiPreGradeEstimate: safeAnalysis
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to upload images." },

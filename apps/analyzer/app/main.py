@@ -401,7 +401,7 @@ def quality_check(payload: AnalyzeRequest) -> QualityResponse:
 
 @app.post("/analyze/card-images", response_model=CardImageAnalysisResponse)
 def analyze_card_images(payload: AnalyzeRequest) -> CardImageAnalysisResponse:
-    # We prefer front image for grading since most key centering/border signals are on the front.
+    # We prefer front image for AI pre-grade estimation since most centering/border signals are on the front.
     selected = payload.front_image_path or payload.back_image_path
     side = "front" if payload.front_image_path else "back"
     result, normalized_path, overlay_path, error = _analyze_path(payload.collection_item_id, side, selected)
@@ -453,7 +453,7 @@ def analyze_card_images(payload: AnalyzeRequest) -> CardImageAnalysisResponse:
         predicted_grade_high=predicted_high,
         confidence=round(result.confidence, 2),
         summary=(
-            "First-pass OpenCV rules estimate (non-official). "
+            "First-pass OpenCV rules AI pre-grade estimate (non-official PSA-like range). "
             f"Saved normalized image to {normalized_path}"
             + (f" and overlay to {overlay_path}." if overlay_path else ".")
         ),

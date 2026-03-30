@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { AI_PRE_GRADE_COPY } from "../../../../lib/ai-pregrade-copy";
 
 type Props = {
   itemId: string;
@@ -41,7 +42,11 @@ export function ImageUploadForm({ itemId }: Props) {
         return;
       }
 
-      setSuccess(payload.analysis ? "Images uploaded and AI pre-grade estimate generated." : "Images uploaded successfully.");
+      setSuccess(
+        payload.analysis
+          ? "Images uploaded. AI pre-grade estimate generated from uploaded images."
+          : "Images uploaded successfully."
+      );
       form.reset();
       router.refresh();
     });
@@ -51,6 +56,9 @@ export function ImageUploadForm({ itemId }: Props) {
     <form onSubmit={onSubmit} className="space-y-3 rounded-lg border bg-white p-4 shadow-sm">
       <h2 className="text-lg font-medium">Card Images</h2>
       <p className="text-xs text-slate-500">Accepted: JPG, PNG, WEBP up to 10MB each.</p>
+      <p className="text-xs text-slate-500">
+        Upload clear front/back photos to run the {AI_PRE_GRADE_COPY.sectionTitle.toLowerCase()} and {AI_PRE_GRADE_COPY.conditionLabel.toLowerCase()}.
+      </p>
 
       <div>
         <label htmlFor="front_image">Front image</label>
@@ -64,6 +72,9 @@ export function ImageUploadForm({ itemId }: Props) {
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {success ? <p className="text-sm text-green-700">{success}</p> : null}
+      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        {AI_PRE_GRADE_COPY.disclaimer}
+      </p>
 
       <button disabled={isPending} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
         {isPending ? "Uploading..." : "Upload images"}
