@@ -44,6 +44,7 @@ model CollectionItem {
   ownership_status    String          @default("owned")
   storage_box         String?
   notes               String?
+  tags                String?
   front_image_path    String?
   back_image_path     String?
   front_thumb_path    String?
