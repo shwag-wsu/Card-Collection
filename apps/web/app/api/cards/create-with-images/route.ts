@@ -3,22 +3,13 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { storeImageForCollectionItem, validateImageFile } from "../../../../lib/image-storage";
+import { lookupEbayPsaComps } from "../../../../lib/market/ebay";
+import { AnalyzerResponse, runAiPregradePipeline } from "../../../../lib/grading/ai-pregrade";
 
 type AnalyzerPayload = {
   collection_item_id: string;
   front_image_path?: string;
   back_image_path?: string;
-};
-
-type AnalyzerResponse = {
-  analyzer_version?: string;
-  blur_flag?: boolean;
-  glare_flag?: boolean;
-  skew_flag?: boolean;
-  predicted_grade_low?: number;
-  predicted_grade_high?: number;
-  confidence?: number;
-  summary?: string;
 };
 
 const ANALYZER_URL = process.env.ANALYZER_URL;
@@ -47,27 +38,6 @@ async function requestCardImageAnalysis(payload: AnalyzerPayload): Promise<Analy
     return null;
   }
 }
-
-const buildComps = (sport: string, gradeMidpoint: number) => {
-  const sportMultipliers: Record<string, number> = {
-    Baseball: 1,
-    Basketball: 1.35,
-    Hockey: 0.9
-  };
-
-  const base = 45 * (sportMultipliers[sport] ?? 1);
-  const qualityFactor = Math.max(0.7, gradeMidpoint / 10);
-
-  const psa8 = Math.round(base * qualityFactor * 100) / 100;
-  const psa9 = Math.round(psa8 * 1.9 * 100) / 100;
-  const psa10 = Math.round(psa9 * 2.2 * 100) / 100;
-
-  return [
-    { grade: "PSA 8" as const, value: psa8 },
-    { grade: "PSA 9" as const, value: psa9 },
-    { grade: "PSA 10" as const, value: psa10 }
-  ];
-};
 
 async function storeExtraImages(collectionItemId: string, files: File[]) {
   await fs.mkdir(EXTRA_DIR, { recursive: true });
@@ -147,58 +117,98 @@ export async function POST(request: Request) {
       back_image_path: storedBack.originalPath
     });
 
+    const pregrade = await runAiPregradePipeline({
+      metadata: {
+        year: card.year ?? undefined,
+        brand: card.manufacturer ?? undefined,
+        set: card.set_name,
+        player: card.player_name ?? undefined,
+        cardNumber: card.card_number ?? undefined,
+        variant: card.parallel ?? undefined,
+        sport: card.sport ?? undefined
+      },
+      frontImagePath: storedFront.originalPath,
+      backImagePath: storedBack.originalPath,
+      analyzer: analysis
+    });
+
+    if (!pregrade.ok) {
+      return NextResponse.json(
+        {
+          card: { id: card.id, player: card.player_name },
+          collectionItemId: item.id,
+          gradingError: pregrade.error,
+          marketError: "Skipped market lookup because grading failed.",
+          aiPreGradeEstimate: null,
+          comps: null,
+          disclaimer:
+            "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
+        },
+        { status: 502 }
+      );
+    }
+
+    const estimate = pregrade.estimate;
+
     const gradeEstimate = await prisma.gradeEstimate.create({
       data: {
         collection_item_id: item.id,
-        analyzer_version: analysis?.analyzer_version ?? "mock-analyzer-v0.2.0",
-        blur_flag: analysis?.blur_flag ?? false,
-        glare_flag: analysis?.glare_flag ?? false,
-        skew_flag: analysis?.skew_flag ?? false,
-        predicted_grade_low: analysis?.predicted_grade_low ?? 7.5,
-        predicted_grade_high: analysis?.predicted_grade_high ?? 9,
-        confidence: analysis?.confidence ?? 0.68,
-        summary:
-          analysis?.summary ??
-          "Estimated from visible centering, corner sharpness, and surface presentation in uploaded photos."
+        analyzer_version: pregrade.analyzer.analyzer_version ?? "ai-pregrade-v1",
+        image_quality_score: pregrade.analyzer.image_quality_score,
+        blur_flag: pregrade.analyzer.blur_flag ?? estimate.detectedIssues.includes("blur"),
+        glare_flag: pregrade.analyzer.glare_flag ?? estimate.detectedIssues.includes("glare"),
+        skew_flag: pregrade.analyzer.skew_flag ?? estimate.detectedIssues.includes("skew"),
+        centering_score: estimate.subscores.centering,
+        corners_score: estimate.subscores.corners,
+        edges_score: estimate.subscores.edges,
+        surface_score: estimate.subscores.surface,
+        predicted_grade_low: Number(estimate.estimatedGradeRange.split(" - ")[0]),
+        predicted_grade_high: Number(estimate.estimatedGradeRange.split(" - ")[1]),
+        confidence: estimate.confidence,
+        summary: estimate.rationale
       }
     });
 
-    const estimatedLow = Number(gradeEstimate.predicted_grade_low ?? 7.5);
-    const estimatedHigh = Number(gradeEstimate.predicted_grade_high ?? 9);
-    const estimatedGradeRange = `${estimatedLow.toFixed(1)} - ${estimatedHigh.toFixed(1)}`;
-    const confidence = gradeEstimate.confidence ? `${Math.round(Number(gradeEstimate.confidence) * 100)}%` : null;
-    const detectedIssues = [gradeEstimate.blur_flag ? "blur" : null, gradeEstimate.glare_flag ? "glare" : null, gradeEstimate.skew_flag ? "skew" : null].filter(Boolean) as string[];
+    let comps = null;
+    let marketError: string | null = null;
 
-    const comps = buildComps(card.sport || "Baseball", (estimatedLow + estimatedHigh) / 2);
+    try {
+      comps = await lookupEbayPsaComps({
+        year: card.year ?? undefined,
+        brand: card.manufacturer ?? undefined,
+        set: card.set_name,
+        player: card.player_name ?? undefined,
+        cardNumber: card.card_number ?? undefined,
+        variant: card.parallel ?? undefined
+      });
 
-    await prisma.priceSnapshot.create({
-      data: {
-        collection_item_id: item.id,
-        provider: "ai-market-lookup",
-        currency: "USD",
-        grade_8_value: comps[0].value,
-        grade_9_value: comps[1].value,
-        grade_10_value: comps[2].value,
-        source_note: "AI-assisted comparable estimate based on uploaded card metadata and image quality signals."
-      }
-    });
-
-    const aiPreGradeEstimate = {
-      aiPreGradeEstimate: estimatedGradeRange,
-      estimatedGradeRange,
-      confidence,
-      detectedIssues,
-      rationale: gradeEstimate.summary
-    };
+      await prisma.priceSnapshot.create({
+        data: {
+          collection_item_id: item.id,
+          provider: "ebay-browse-api",
+          currency: "USD",
+          grade_8_value: comps.find((comp) => comp.grade === "PSA 8")?.avgPrice ?? null,
+          grade_9_value: comps.find((comp) => comp.grade === "PSA 9")?.avgPrice ?? null,
+          grade_10_value: comps.find((comp) => comp.grade === "PSA 10")?.avgPrice ?? null,
+          source_note:
+            "eBay Browse API active listings (FIXED_PRICE and AUCTION). Sold/completed data is not included in this implementation."
+        }
+      });
+    } catch (error) {
+      console.error("Market lookup failed", error);
+      marketError = "Market data unavailable";
+    }
 
     return NextResponse.json({
       card: { id: card.id, player: card.player_name },
       collectionItemId: item.id,
-      aiPreGradeEstimate,
-      estimatedGradeRange,
-      confidence,
-      detectedIssues,
-      rationale: gradeEstimate.summary,
+      aiPreGradeEstimate: {
+        ...estimate,
+        confidence: `${Math.round(estimate.confidence * 100)}%`
+      },
+      gradeEstimateId: gradeEstimate.id,
+      gradingError: null,
+      marketError,
       comps,
       disclaimer:
         "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
