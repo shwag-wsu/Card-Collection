@@ -2,26 +2,58 @@ import Link from "next/link";
 import { prisma } from "../lib/prisma";
 import { createCardAndCollectionItem, deleteCollectionItem } from "./actions";
 
+const MANUFACTURERS = [
+  "Topps",
+  "Bowman",
+  "Fleer",
+  "Upper Deck",
+  "Donruss",
+  "Panini",
+  "Score",
+  "Leaf"
+];
+
 export default async function HomePage({
   searchParams
 }: {
   searchParams?: { q?: string };
 }) {
   const query = searchParams?.q?.trim() || "";
+  const numericQuery = Number(query);
+
+  const searchOr: any[] = [
+    { card: { player_name: { contains: query, mode: "insensitive" } } },
+    { card: { sport: { contains: query, mode: "insensitive" } } },
+    { card: { manufacturer: { contains: query, mode: "insensitive" } } },
+    { card: { set_name: { contains: query, mode: "insensitive" } } },
+    { card: { card_number: { contains: query, mode: "insensitive" } } }
+  ];
+
+  if (!Number.isNaN(numericQuery)) {
+    searchOr.push({ card: { year: numericQuery } });
+  }
 
   const items = await prisma.collectionItem.findMany({
-    where: query
-      ? {
-          OR: [
-            { card: { player_name: { contains: query, mode: "insensitive" } } },
-            { card: { character_name: { contains: query, mode: "insensitive" } } },
-            { card: { set_name: { contains: query, mode: "insensitive" } } },
-            { card: { game: { contains: query, mode: "insensitive" } } },
-            { card: { card_number: { contains: query, mode: "insensitive" } } }
-          ]
-        }
-      : undefined,
-    include: { card: true },
+    where: query ? { OR: searchOr } : undefined,
+    include: {
+      card: true,
+      grade_estimates: {
+        orderBy: { created_at: "desc" },
+        take: 1
+      },
+      price_snapshots: {
+        orderBy: { captured_at: "desc" },
+        take: 1
+      },
+      grading_quotes: {
+        orderBy: { created_at: "desc" },
+        take: 1
+      },
+      roi_scenarios: {
+        orderBy: { calculated_at: "desc" },
+        take: 4
+      }
+    },
     orderBy: { created_at: "desc" }
   });
 
@@ -29,7 +61,9 @@ export default async function HomePage({
     <main className="space-y-8">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Card Collection</h1>
-        <p className="text-sm text-slate-600">Basic CRUD for cards + collection items.</p>
+        <p className="text-sm text-slate-600">
+          Add a card, then upload front/back images from the Edit screen to run the AI pre-grade.
+        </p>
       </header>
 
       <section className="rounded-lg border bg-white p-4 shadow-sm">
@@ -38,34 +72,56 @@ export default async function HomePage({
           <input
             name="q"
             defaultValue={query}
-            placeholder="Search player, set, game, card #"
+            placeholder="Search player, sport, manufacturer, set, year, card #"
             className="w-full"
           />
-          <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white">Search</button>
+          <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+            Search
+          </button>
         </form>
       </section>
 
       <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-lg font-medium">Add Card + Collection Item</h2>
-        <form action={createCardAndCollectionItem} className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <input name="game" placeholder="Game (e.g. Pokemon)" required />
-          <input name="set_name" placeholder="Set name" required />
-          <input name="year" type="number" placeholder="Year" />
-          <input name="manufacturer" placeholder="Manufacturer" />
-          <input name="player_name" placeholder="Player name" />
-          <input name="character_name" placeholder="Character name" />
-          <input name="card_number" placeholder="Card number" />
-          <input name="quantity" type="number" min={1} defaultValue={1} placeholder="Quantity" />
-          <input name="purchase_price" type="number" step="0.01" placeholder="Purchase price (USD)" />
-          <select name="ownership_status" defaultValue="owned">
-            <option value="owned">Owned</option>
-            <option value="sold">Sold</option>
-            <option value="wishlist">Wishlist</option>
-          </select>
-          <textarea name="item_notes" placeholder="Item notes" className="md:col-span-2" rows={3} />
-          <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white md:col-span-2 md:justify-self-start">
-            Save
-          </button>
+        <h2 className="mb-3 text-lg font-medium">Add Card</h2>
+
+        <form action={createCardAndCollectionItem} className="space-y-6">
+          <div>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Card Details
+            </h3>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <input name="sport" placeholder="Sport (e.g. Baseball)" required />
+
+              <input name="year" type="number" placeholder="Year" required />
+
+              <select name="manufacturer" required defaultValue="">
+                <option value="" disabled>
+                  Select manufacturer
+                </option>
+                {MANUFACTURERS.map((manufacturer) => (
+                  <option key={manufacturer} value={manufacturer}>
+                    {manufacturer}
+                  </option>
+                ))}
+              </select>
+
+              <input name="set_name" placeholder="Set name" required />
+
+              <input name="card_number" placeholder="Card number" required />
+
+              <input name="player_name" placeholder="Player name" required />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+              Save Card
+            </button>
+            <p className="text-sm text-slate-500">
+              Front/back images are uploaded after saving from the Edit page.
+            </p>
+          </div>
         </form>
       </section>
 
@@ -76,39 +132,80 @@ export default async function HomePage({
             <thead>
               <tr className="border-b text-left text-slate-600">
                 <th className="p-2">Card</th>
-                <th className="p-2">Qty</th>
-                <th className="p-2">Status</th>
-                <th className="p-2">Purchase</th>
+                <th className="p-2">AI Pre-Grade</th>
+                <th className="p-2">ROI</th>
                 <th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item:any) => (
-                <tr key={item.id} className="border-b align-top">
-                  <td className="p-2">
-                    <div className="font-medium">{item.card.player_name || item.card.character_name || "Unknown"}</div>
-                    <div className="text-slate-600">
-                      {item.card.year ? `${item.card.year} ` : ""}
-                      {item.card.set_name} #{item.card.card_number || "N/A"}
-                    </div>
-                  </td>
-                  <td className="p-2">{item.quantity}</td>
-                  <td className="p-2 capitalize">{item.ownership_status}</td>
-                  <td className="p-2">{item.purchase_price ? `$${item.purchase_price.toString()}` : "-"}</td>
-                  <td className="space-x-3 p-2">
-                    <Link href={`/cards/${item.card.id}`} className="text-blue-600 hover:underline">
-                      Card
-                    </Link>
-                    <Link href={`/items/${item.id}/edit`} className="text-blue-600 hover:underline">
-                      Edit
-                    </Link>
-                    <form action={deleteCollectionItem} className="inline">
-                      <input type="hidden" name="id" value={item.id} />
-                      <button className="text-rose-600 hover:underline">Delete</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
+              {items.map((item) => {
+                const latestEstimate = item.grade_estimates[0];
+                const scenarios = item.roi_scenarios;
+                const bestScenario =
+                  scenarios.find((scenario) => scenario.grade_label === "PSA 10") ??
+                  scenarios.find((scenario) => scenario.grade_label === "PSA 9") ??
+                  scenarios[0];
+
+                return (
+                  <tr key={item.id} className="border-b align-top">
+                    <td className="p-2">
+                      <div className="font-medium">
+                        {item.card.player_name || "Unknown Player"}
+                      </div>
+                      <div className="text-slate-600">
+                        {item.card.year ? `${item.card.year} · ` : ""}
+                        {item.card.manufacturer ? `${item.card.manufacturer} · ` : ""}
+                        {item.card.sport ? `${item.card.sport} · ` : ""}
+                        {item.card.set_name} #{item.card.card_number || "N/A"}
+                      </div>
+                    </td>
+
+                    <td className="p-2">
+                      {latestEstimate ? (
+                        <div>
+                          <div className="font-medium">
+                            {latestEstimate.predicted_grade_low?.toString() ?? "-"} to{" "}
+                            {latestEstimate.predicted_grade_high?.toString() ?? "-"}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            AI estimate
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">Upload images</span>
+                      )}
+                    </td>
+
+                    <td className="p-2">
+                      {bestScenario ? (
+                        <div>
+                          <div className="font-medium">
+                            {bestScenario.grade_label}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Net ${Number(bestScenario.net_after_fees).toFixed(2)}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">Needs pricing inputs</span>
+                      )}
+                    </td>
+
+                    <td className="space-x-3 p-2">
+                      <Link href={`/cards/${item.card.id}`} className="text-blue-600 hover:underline">
+                        Card
+                      </Link>
+                      <Link href={`/items/${item.id}/edit`} className="text-blue-600 hover:underline">
+                        Edit
+                      </Link>
+                      <form action={deleteCollectionItem} className="inline">
+                        <input type="hidden" name="id" value={item.id} />
+                        <button className="text-rose-600 hover:underline">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
