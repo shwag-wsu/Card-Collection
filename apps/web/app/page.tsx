@@ -26,7 +26,8 @@ export default async function HomePage({
     { card: { sport: { contains: query, mode: "insensitive" } } },
     { card: { manufacturer: { contains: query, mode: "insensitive" } } },
     { card: { set_name: { contains: query, mode: "insensitive" } } },
-    { card: { card_number: { contains: query, mode: "insensitive" } } }
+    { card: { card_number: { contains: query, mode: "insensitive" } } },
+    { tags: { contains: query, mode: "insensitive" } }
   ];
 
   if (!Number.isNaN(numericQuery)) {
@@ -38,14 +39,6 @@ export default async function HomePage({
     include: {
       card: true,
       grade_estimates: {
-        orderBy: { created_at: "desc" },
-        take: 1
-      },
-      price_snapshots: {
-        orderBy: { captured_at: "desc" },
-        take: 1
-      },
-      grading_quotes: {
         orderBy: { created_at: "desc" },
         take: 1
       },
@@ -72,7 +65,7 @@ export default async function HomePage({
           <input
             name="q"
             defaultValue={query}
-            placeholder="Search player, sport, manufacturer, set, year, card #"
+            placeholder="Search player, sport, manufacturer, set, year, card #, tag"
             className="w-full"
           />
           <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white">
@@ -92,7 +85,6 @@ export default async function HomePage({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <input name="sport" placeholder="Sport (e.g. Baseball)" required />
-
               <input name="year" type="number" placeholder="Year" required />
 
               <select name="manufacturer" required defaultValue="">
@@ -106,10 +98,9 @@ export default async function HomePage({
                 ))}
               </select>
 
-              <input name="set_name" placeholder="Set name" required />
+              <input name="set_name" placeholder="Set name (optional)" />
 
               <input name="card_number" placeholder="Card number" required />
-
               <input name="player_name" placeholder="Player name" required />
             </div>
           </div>
@@ -132,6 +123,7 @@ export default async function HomePage({
             <thead>
               <tr className="border-b text-left text-slate-600">
                 <th className="p-2">Card</th>
+                <th className="p-2">Tags</th>
                 <th className="p-2">AI Pre-Grade</th>
                 <th className="p-2">ROI</th>
                 <th className="p-2">Actions</th>
@@ -156,8 +148,16 @@ export default async function HomePage({
                         {item.card.year ? `${item.card.year} · ` : ""}
                         {item.card.manufacturer ? `${item.card.manufacturer} · ` : ""}
                         {item.card.sport ? `${item.card.sport} · ` : ""}
-                        {item.card.set_name} #{item.card.card_number || "N/A"}
+                        {item.card.set_name || "No Set"} #{item.card.card_number || "N/A"}
                       </div>
+                    </td>
+
+                    <td className="p-2">
+                      {item.tags ? (
+                        <span className="text-slate-700">{item.tags}</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
 
                     <td className="p-2">
@@ -167,9 +167,7 @@ export default async function HomePage({
                             {latestEstimate.predicted_grade_low?.toString() ?? "-"} to{" "}
                             {latestEstimate.predicted_grade_high?.toString() ?? "-"}
                           </div>
-                          <div className="text-xs text-slate-500">
-                            AI estimate
-                          </div>
+                          <div className="text-xs text-slate-500">AI estimate</div>
                         </div>
                       ) : (
                         <span className="text-slate-400">Upload images</span>
@@ -179,9 +177,7 @@ export default async function HomePage({
                     <td className="p-2">
                       {bestScenario ? (
                         <div>
-                          <div className="font-medium">
-                            {bestScenario.grade_label}
-                          </div>
+                          <div className="font-medium">{bestScenario.grade_label}</div>
                           <div className="text-xs text-slate-500">
                             Net ${Number(bestScenario.net_after_fees).toFixed(2)}
                           </div>
