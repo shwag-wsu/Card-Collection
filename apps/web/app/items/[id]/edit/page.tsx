@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "../../../../lib/prisma";
 import { updateCollectionItem } from "../../../actions";
@@ -54,10 +53,10 @@ export default async function EditCollectionItemPage({ params }: { params: { id:
           <h2 className="text-lg font-medium">Current images</h2>
           <div className="flex flex-wrap gap-4">
             {item.front_thumb_path && (
-              <Image src={item.front_thumb_path} alt="Front thumbnail" width={180} height={180} className="rounded border" />
+              <img src={item.front_thumb_path} alt="Front thumbnail" width={180} height={180} className="rounded border" />
             )}
             {item.back_thumb_path && (
-              <Image src={item.back_thumb_path} alt="Back thumbnail" width={180} height={180} className="rounded border" />
+              <img src={item.back_thumb_path} alt="Back thumbnail" width={180} height={180} className="rounded border" />
             )}
           </div>
         </section>

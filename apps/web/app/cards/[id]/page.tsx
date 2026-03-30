@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { calculateRoiScenarios, createGradingQuote, createPriceSnapshot } from "../../actions";
@@ -76,7 +75,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                   <div className="flex flex-wrap gap-3">
                     {item.front_thumb_path && (
                       <a href={item.front_image_path || item.front_thumb_path} target="_blank" rel="noreferrer">
-                        <Image
+                        <img
                           src={item.front_thumb_path}
                           alt="Front preview"
                           width={140}
@@ -87,7 +86,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                     )}
                     {item.back_thumb_path && (
                       <a href={item.back_image_path || item.back_thumb_path} target="_blank" rel="noreferrer">
-                        <Image
+                        <img
                           src={item.back_thumb_path}
                           alt="Back preview"
                           width={140}
