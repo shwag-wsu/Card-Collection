@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "../lib/prisma";
 import { createCardAndCollectionItem, deleteCollectionItem } from "./actions";
+import { AI_PRE_GRADE_COPY } from "../lib/ai-pregrade-copy";
 
 const MANUFACTURERS = [
   "Topps",
@@ -55,7 +56,7 @@ export default async function HomePage({
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Card Collection</h1>
         <p className="text-sm text-slate-600">
-          Add a card, then upload front/back images from the Edit screen to run the AI pre-grade.
+          Add a card, then upload front/back images from the Edit screen to generate an AI pre-grade estimate.
         </p>
       </header>
 
@@ -124,7 +125,7 @@ export default async function HomePage({
               <tr className="border-b text-left text-slate-600">
                 <th className="p-2">Card</th>
                 <th className="p-2">Tags</th>
-                <th className="p-2">AI Pre-Grade</th>
+                <th className="p-2">{AI_PRE_GRADE_COPY.sectionTitle}</th>
                 <th className="p-2">ROI</th>
                 <th className="p-2">Actions</th>
               </tr>
@@ -167,7 +168,8 @@ export default async function HomePage({
                             {latestEstimate.predicted_grade_low?.toString() ?? "-"} to{" "}
                             {latestEstimate.predicted_grade_high?.toString() ?? "-"}
                           </div>
-                          <div className="text-xs text-slate-500">AI estimate</div>
+                          <div className="text-xs text-slate-500">{AI_PRE_GRADE_COPY.rangeLabel}</div>
+                          <div className="text-xs text-slate-500">{AI_PRE_GRADE_COPY.disclaimer}</div>
                         </div>
                       ) : (
                         <span className="text-slate-400">Upload images</span>

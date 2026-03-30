@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { calculateRoiScenarios, createGradingQuote, createPriceSnapshot } from "../../actions";
 import { prisma } from "../../../lib/prisma";
+import { AI_PRE_GRADE_COPY, formatConfidenceBadge } from "../../../lib/ai-pregrade-copy";
 
 const formatMoney = (value: number | string | null | undefined) => {
   if (value === null || value === undefined) return "-";
@@ -99,20 +100,56 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                 )}
 
                 {latestEstimate && (
-                  <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 text-slate-700">
-                    <h3 className="font-medium text-indigo-900">AI Pre-Grade Estimate</h3>
-                    <p className="mt-1">
-                      Likely grade range: <strong>{latestEstimate.predicted_grade_low?.toString() ?? "-"}</strong> to{" "}
-                      <strong>{latestEstimate.predicted_grade_high?.toString() ?? "-"}</strong>
-                      {latestEstimate.confidence ? (
-                        <span className="ml-2 text-xs text-indigo-800">
-                          ({Math.round(Number(latestEstimate.confidence) * 100)}% confidence)
-                        </span>
-                      ) : null}
-                    </p>
-                    {latestEstimate.summary ? <p className="mt-1 text-xs">{latestEstimate.summary}</p> : null}
-                    <p className="mt-1 text-xs text-indigo-800">
-                      Disclaimer: This AI estimate is for guidance only and is not an official PSA grade.
+                  <div className="space-y-3 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-4 text-slate-700">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-base font-semibold text-indigo-950">{AI_PRE_GRADE_COPY.sectionTitle}</h3>
+                      <span className="rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-xs font-medium text-indigo-700">
+                        {AI_PRE_GRADE_COPY.helperText}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-slate-600">{AI_PRE_GRADE_COPY.resultsIntro}</p>
+
+                    <div className="grid gap-2 text-sm md:grid-cols-2">
+                      <div className="rounded-md border border-indigo-100 bg-white p-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                          {AI_PRE_GRADE_COPY.rangeLabel}
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-indigo-900">
+                          {latestEstimate.predicted_grade_low?.toString() ?? "-"} to{" "}
+                          {latestEstimate.predicted_grade_high?.toString() ?? "-"}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-indigo-100 bg-white p-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                          {AI_PRE_GRADE_COPY.confidenceLabel}
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-indigo-900">
+                          {formatConfidenceBadge(latestEstimate.confidence?.toString())}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-indigo-100 bg-white p-2 text-sm">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        {AI_PRE_GRADE_COPY.conditionLabel}
+                      </p>
+                      <p className="mt-1">{latestEstimate.summary || "No additional rationale available yet."}</p>
+                    </div>
+
+                    <div className="rounded-md border border-indigo-100 bg-white p-2 text-sm">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        {AI_PRE_GRADE_COPY.issuesLabel}
+                      </p>
+                      <ul className="mt-1 list-inside list-disc space-y-1 text-slate-600">
+                        <li>{latestEstimate.blur_flag ? "Blur detected in uploaded image" : "No major blur detected"}</li>
+                        <li>{latestEstimate.glare_flag ? "Glare detected in uploaded image" : "No major glare detected"}</li>
+                        <li>{latestEstimate.skew_flag ? "Perspective skew detected" : "No major perspective skew detected"}</li>
+                      </ul>
+                    </div>
+
+                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      {AI_PRE_GRADE_COPY.disclaimer}
                     </p>
                   </div>
                 )}
@@ -120,6 +157,9 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                 <div className="grid gap-3 lg:grid-cols-3">
                   <form action={createPriceSnapshot} className="space-y-2 rounded-md border bg-slate-50 p-3">
                     <h3 className="font-medium">Manual Price Snapshot</h3>
+                    <p className="text-xs text-slate-500">
+                      Comparable market values by official PSA grade. Use these as reference points alongside the AI pre-grade estimate.
+                    </p>
                     <input type="hidden" name="collection_item_id" value={item.id} />
                     <input type="hidden" name="card_id" value={card.id} />
                     <input name="provider" placeholder="Provider (manual, eBay, etc.)" defaultValue="manual" />
@@ -157,9 +197,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                     <h3 className="font-medium">ROI Scenarios</h3>
                     <input type="hidden" name="collection_item_id" value={item.id} />
                     <input type="hidden" name="card_id" value={card.id} />
-                    <p className="text-xs text-slate-600">
-                      Calculates raw, PSA 8, PSA 9, and PSA 10 using the latest snapshot and quote.
-                    </p>
+                    <p className="text-xs text-slate-600">Calculates raw plus PSA 8/9/10 comparison scenarios from your latest manual inputs.</p>
                     <input
                       name="selling_fee_pct"
                       type="number"
@@ -179,7 +217,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
 
                     {latestSnapshot && (
                       <p className="text-xs text-emerald-900">
-                        Snapshot ({latestSnapshot.provider}): Raw mid {formatMoney(latestSnapshot.raw_mid?.toString())} · PSA 8{" "}
+                        Snapshot ({latestSnapshot.provider}): Raw mid {formatMoney(latestSnapshot.raw_mid?.toString())} · Comparable official PSA 8{" "}
                         {formatMoney(latestSnapshot.grade_8_value?.toString())} · PSA 9{" "}
                         {formatMoney(latestSnapshot.grade_9_value?.toString())} · PSA 10{" "}
                         {formatMoney(latestSnapshot.grade_10_value?.toString())}
