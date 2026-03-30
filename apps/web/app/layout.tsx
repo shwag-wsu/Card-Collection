@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
+import { AppHeader } from "../components/layout/AppHeader";
 
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME || "Card Collection",
@@ -11,7 +12,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <div className="mx-auto min-h-screen w-full max-w-6xl p-6">{children}</div>
+        <div className="mx-auto min-h-screen w-full max-w-6xl p-6">
+          <AppHeader />
+          {children}
+        </div>
       </body>
     </html>
   );

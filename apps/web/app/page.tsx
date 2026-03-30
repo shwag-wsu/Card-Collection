@@ -1,18 +1,7 @@
 import Link from "next/link";
 import { prisma } from "../lib/prisma";
-import { createCardAndCollectionItem, deleteCollectionItem } from "./actions";
+import { deleteCollectionItem } from "./actions";
 import { AI_PRE_GRADE_COPY } from "../lib/ai-pregrade-copy";
-
-const MANUFACTURERS = [
-  "Topps",
-  "Bowman",
-  "Fleer",
-  "Upper Deck",
-  "Donruss",
-  "Panini",
-  "Score",
-  "Leaf"
-];
 
 export default async function HomePage({
   searchParams
@@ -53,14 +42,17 @@ export default async function HomePage({
 
   return (
     <main className="space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Card Collection</h1>
+      <header className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h1 className="text-3xl font-semibold">Collection Dashboard</h1>
         <p className="text-sm text-slate-600">
-          Add a card, then upload front/back images from the Edit screen to generate an AI pre-grade estimate.
+          Use the menu to open <span className="font-semibold">Add Card</span>, then complete details, image upload, and review the AI pre-grade estimate.
         </p>
+        <Link href="/cards/new" className="inline-flex rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white">
+          Open Add Card Wizard
+        </Link>
       </header>
 
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-lg font-medium">Search Collection</h2>
         <form className="flex gap-2">
           <input
@@ -69,55 +61,11 @@ export default async function HomePage({
             placeholder="Search player, sport, manufacturer, set, year, card #, tag"
             className="w-full"
           />
-          <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white">
-            Search
-          </button>
+          <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white">Search</button>
         </form>
       </section>
 
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-lg font-medium">Add Card</h2>
-
-        <form action={createCardAndCollectionItem} className="space-y-6">
-          <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Card Details
-            </h3>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <input name="sport" placeholder="Sport (e.g. Baseball)" required />
-              <input name="year" type="number" placeholder="Year" required />
-
-              <select name="manufacturer" required defaultValue="">
-                <option value="" disabled>
-                  Select manufacturer
-                </option>
-                {MANUFACTURERS.map((manufacturer) => (
-                  <option key={manufacturer} value={manufacturer}>
-                    {manufacturer}
-                  </option>
-                ))}
-              </select>
-
-              <input name="set_name" placeholder="Set name (optional)" />
-
-              <input name="card_number" placeholder="Card number" required />
-              <input name="player_name" placeholder="Player name" required />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-              Save Card
-            </button>
-            <p className="text-sm text-slate-500">
-              Front/back images are uploaded after saving from the Edit page.
-            </p>
-          </div>
-        </form>
-      </section>
-
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-lg font-medium">Collection Items ({items.length})</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -142,9 +90,7 @@ export default async function HomePage({
                 return (
                   <tr key={item.id} className="border-b align-top">
                     <td className="p-2">
-                      <div className="font-medium">
-                        {item.card.player_name || "Unknown Player"}
-                      </div>
+                      <div className="font-medium">{item.card.player_name || "Unknown Player"}</div>
                       <div className="text-slate-600">
                         {item.card.year ? `${item.card.year} · ` : ""}
                         {item.card.manufacturer ? `${item.card.manufacturer} · ` : ""}
@@ -154,19 +100,14 @@ export default async function HomePage({
                     </td>
 
                     <td className="p-2">
-                      {item.tags ? (
-                        <span className="text-slate-700">{item.tags}</span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
+                      {item.tags ? <span className="text-slate-700">{item.tags}</span> : <span className="text-slate-400">—</span>}
                     </td>
 
                     <td className="p-2">
                       {latestEstimate ? (
                         <div>
                           <div className="font-medium">
-                            {latestEstimate.predicted_grade_low?.toString() ?? "-"} to{" "}
-                            {latestEstimate.predicted_grade_high?.toString() ?? "-"}
+                            {latestEstimate.predicted_grade_low?.toString() ?? "-"} to {latestEstimate.predicted_grade_high?.toString() ?? "-"}
                           </div>
                           <div className="text-xs text-slate-500">{AI_PRE_GRADE_COPY.rangeLabel}</div>
                           <div className="text-xs text-slate-500">{AI_PRE_GRADE_COPY.disclaimer}</div>
@@ -180,9 +121,7 @@ export default async function HomePage({
                       {bestScenario ? (
                         <div>
                           <div className="font-medium">{bestScenario.grade_label}</div>
-                          <div className="text-xs text-slate-500">
-                            Net ${Number(bestScenario.net_after_fees).toFixed(2)}
-                          </div>
+                          <div className="text-xs text-slate-500">Net ${Number(bestScenario.net_after_fees).toFixed(2)}</div>
                         </div>
                       ) : (
                         <span className="text-slate-400">Needs pricing inputs</span>
