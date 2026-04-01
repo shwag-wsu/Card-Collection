@@ -69,12 +69,12 @@ README.md
    docker compose down
    ```
 
-## AI pre-grade + Market integration notes
+## AI pre-grade + Pricing API notes
 
 ### Wizard API route
 
 - Add-card wizard submits to `POST /api/cards/create-with-images`.
-- The route stores images, runs AI pre-grade estimation, and then runs eBay market lookup for PSA 8/9/10 buckets.
+- The route stores images and runs AI pre-grade estimation.
 
 ### Environment variables
 
@@ -83,9 +83,6 @@ Set these in `.env`:
 - `ANALYZER_URL` (required fallback analyzer service URL)
 - `OPENAI_API_KEY` (optional, enables vision-model JSON grading)
 - `OPENAI_GRADING_MODEL` (optional, default `gpt-4.1-mini`)
-- `EBAY_CLIENT_ID` (required for live eBay comps)
-- `EBAY_CLIENT_SECRET` (required for live eBay comps)
-- `EBAY_MARKETPLACE_ID` (optional, default `EBAY_US`)
 
 ### Testing: grading is no longer hardcoded
 
@@ -94,16 +91,10 @@ Set these in `.env`:
 3. Verify API response includes `fallbackUsed` so you can tell if fallback logic was used.
 4. Temporarily unset `ANALYZER_URL` and `OPENAI_API_KEY` to verify the route returns a grading error state (no fake 7.5-9 defaults).
 
-### Testing: market data is live
-
-1. Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET`.
-2. Run a wizard upload with real metadata (`year`, `brand`, `set`, `player`, `cardNumber`).
-3. Confirm response includes grade buckets for `PSA 8`, `PSA 9`, and `PSA 10` with `sampleSize > 0` when matches exist.
-4. If no clean comps match, the API returns sparse data (`avgPrice: null`) instead of invented averages.
-
 ## Notes
 
 - PostgreSQL data is persisted in Docker volume `postgres_data`.
 - Card image files are persisted on disk under `./storage`.
 - `web` waits for healthy `db` and `analyzer` before starting.
-- eBay Browse implementation uses active listings (`FIXED_PRICE` + `AUCTION`); sold/completed listings are not included in this version.
+- API docs are available at `GET /api/docs` (Swagger UI) backed by `GET /api/openapi`.
+- Manual pricing snapshots can be uploaded with `POST /api/price-snapshots`.
