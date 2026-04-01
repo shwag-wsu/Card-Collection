@@ -6,16 +6,9 @@ type Props = {
   onStartOver: () => void;
 };
 
-const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export function CardResultsStep({ result, onStartOver }: Props) {
   const estimate = result.aiPreGradeEstimate;
-  const displayComps = result.comps || (["PSA 8", "PSA 9", "PSA 10"] as const).map((grade) => ({
-    grade,
-    avgPrice: null as number | null,
-    sampleSize: 0
-  }));
-
   return (
     <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
@@ -64,20 +57,6 @@ export function CardResultsStep({ result, onStartOver }: Props) {
           </div>
         </>
       )}
-
-      <div className="rounded-xl border border-slate-200 p-4">
-        <h3 className="font-semibold text-slate-900">Market references (eBay)</h3>
-        {result.marketError ? <p className="mt-2 text-sm text-amber-700">Market data unavailable</p> : null}
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          {displayComps.map((comp) => (
-            <div key={comp.grade} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-              <p className="text-slate-500">{comp.grade}</p>
-              <p className="text-lg font-semibold text-slate-900">{comp.avgPrice !== null ? money.format(comp.avgPrice) : "N/A"}</p>
-              <p className="text-xs text-slate-500">Samples: {comp.sampleSize}</p>
-            </div>
-          ))}
-        </div>
-      </div>
 
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
         This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade.

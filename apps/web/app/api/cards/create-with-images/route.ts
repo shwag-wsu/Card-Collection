@@ -3,7 +3,6 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { storeImageForCollectionItem, validateImageFile } from "../../../../lib/image-storage";
-import { lookupEbayPsaComps } from "../../../../lib/market/ebay";
 import { AnalyzerResponse, runAiPregradePipeline } from "../../../../lib/grading/ai-pregrade";
 
 type AnalyzerPayload = {
@@ -138,9 +137,7 @@ export async function POST(request: Request) {
           card: { id: card.id, player: card.player_name },
           collectionItemId: item.id,
           gradingError: pregrade.error,
-          marketError: "Skipped market lookup because grading failed.",
           aiPreGradeEstimate: null,
-          comps: null,
           disclaimer:
             "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
         },
@@ -169,36 +166,6 @@ export async function POST(request: Request) {
       }
     });
 
-    let comps = null;
-    let marketError: string | null = null;
-
-    try {
-      comps = await lookupEbayPsaComps({
-        year: card.year ?? undefined,
-        brand: card.manufacturer ?? undefined,
-        set: card.set_name,
-        player: card.player_name ?? undefined,
-        cardNumber: card.card_number ?? undefined,
-        variant: card.parallel ?? undefined
-      });
-
-      await prisma.priceSnapshot.create({
-        data: {
-          collection_item_id: item.id,
-          provider: "ebay-browse-api",
-          currency: "USD",
-          grade_8_value: comps.find((comp) => comp.grade === "PSA 8")?.avgPrice ?? null,
-          grade_9_value: comps.find((comp) => comp.grade === "PSA 9")?.avgPrice ?? null,
-          grade_10_value: comps.find((comp) => comp.grade === "PSA 10")?.avgPrice ?? null,
-          source_note:
-            "eBay Browse API active listings (FIXED_PRICE and AUCTION). Sold/completed data is not included in this implementation."
-        }
-      });
-    } catch (error) {
-      console.error("Market lookup failed", error);
-      marketError = "Market data unavailable";
-    }
-
     return NextResponse.json({
       card: { id: card.id, player: card.player_name },
       collectionItemId: item.id,
@@ -208,8 +175,6 @@ export async function POST(request: Request) {
       },
       gradeEstimateId: gradeEstimate.id,
       gradingError: null,
-      marketError,
-      comps,
       disclaimer:
         "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
     });
