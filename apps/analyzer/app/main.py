@@ -22,10 +22,10 @@ SKEW_DEGREES_THRESHOLD = 6.0
 
 # The analyzer service may run in a different working directory than the web app.
 # We default to the repository's upload folder but allow overrides for deployments.
-STORAGE_ROOT = Path(os.getenv("ANALYZER_STORAGE_ROOT", "/workspace/Card-Collection/apps/web/public"))
-UPLOADS_ROOT = STORAGE_ROOT / "uploads"
-PROCESSED_DIR = UPLOADS_ROOT / "processed"
-OVERLAYS_DIR = UPLOADS_ROOT / "overlays"
+STORAGE_ROOT = Path(os.getenv("STORAGE_ROOT", "/app/storage"))
+ORIGINALS_DIR = STORAGE_ROOT / "originals"
+PROCESSED_DIR = STORAGE_ROOT / "processed"
+OVERLAYS_DIR = STORAGE_ROOT / "overlays"
 
 
 class AnalyzeRequest(BaseModel):
@@ -61,6 +61,7 @@ class CardImageAnalysisResponse(BaseModel):
     blur_flag: bool
     glare_flag: bool
     skew_flag: bool
+    crop_flag: bool
     centering_score: float = Field(..., ge=1, le=10)
     corners_score: float = Field(..., ge=1, le=10)
     edges_score: float = Field(..., ge=1, le=10)
@@ -91,8 +92,10 @@ class DetectionResult:
 def _resolve_image_path(image_path: str | None) -> Path | None:
     if not image_path:
         return None
-    if image_path.startswith("/uploads/"):
-        return STORAGE_ROOT / image_path.lstrip("/")
+    if image_path.startswith("/api/images/originals/"):
+        return ORIGINALS_DIR / Path(image_path).name
+    if image_path.startswith("/originals/"):
+        return ORIGINALS_DIR / Path(image_path).name
     path = Path(image_path)
     return path if path.is_absolute() else STORAGE_ROOT / path
 
@@ -313,7 +316,7 @@ def _save_outputs(collection_item_id: str, side: str, result: DetectionResult) -
     cv2.imwrite(str(normalized_disk), result.normalized)
     cv2.imwrite(str(overlay_disk), result.overlay)
 
-    return f"/uploads/processed/{normalized_name}", f"/uploads/overlays/{overlay_name}"
+    return f"/api/images/processed/{normalized_name}", f"/api/images/overlays/{overlay_name}"
 
 
 def _analyze_path(collection_item_id: str, side: str, image_path: str | None) -> tuple[DetectionResult | None, str | None, str | None, str | None]:
@@ -414,6 +417,7 @@ def analyze_card_images(payload: AnalyzeRequest) -> CardImageAnalysisResponse:
             blur_flag=True,
             glare_flag=False,
             skew_flag=True,
+            crop_flag=True,
             centering_score=3.0,
             corners_score=3.0,
             edges_score=3.0,
@@ -445,6 +449,7 @@ def analyze_card_images(payload: AnalyzeRequest) -> CardImageAnalysisResponse:
         blur_flag=result.blur_flag,
         glare_flag=result.glare_flag,
         skew_flag=result.skew_flag,
+        crop_flag=result.crop_flag,
         centering_score=round(result.centering_score, 1),
         corners_score=round(result.corners_score, 1),
         edges_score=round(result.edges_score, 1),

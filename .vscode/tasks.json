@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "docker: up",
+      "type": "shell",
+      "command": "docker compose up --build -d",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "docker: down",
+      "type": "shell",
+      "command": "docker compose down",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "prisma: migrate deploy",
+      "type": "shell",
+      "command": "docker compose exec web npx prisma migrate deploy",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "prisma: migrate dev",
+      "type": "shell",
+      "command": "docker compose exec web npx prisma migrate dev",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

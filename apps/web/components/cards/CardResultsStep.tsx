@@ -6,9 +6,10 @@ type Props = {
   onStartOver: () => void;
 };
 
-
 export function CardResultsStep({ result, onStartOver }: Props) {
   const estimate = result.aiPreGradeEstimate;
+  const showRetake = result.gradingStatus === "needs_retake" || (estimate && !estimate.gradable);
+
   return (
     <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
@@ -25,7 +26,7 @@ export function CardResultsStep({ result, onStartOver }: Props) {
         <>
           <div className="grid gap-3 md:grid-cols-4">
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-blue-700">Estimated PSA-like Range</p>
+              <p className="text-xs uppercase tracking-wide text-blue-700">Estimated Grade Range</p>
               <p className="mt-1 text-2xl font-semibold text-blue-900">{estimate.estimatedGradeRange}</p>
             </div>
 
@@ -35,13 +36,13 @@ export function CardResultsStep({ result, onStartOver }: Props) {
             </div>
 
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-emerald-700">Detected Issues</p>
+              <p className="text-xs uppercase tracking-wide text-emerald-700">Visible Issues</p>
               <p className="mt-1 text-sm font-semibold text-emerald-900">{estimate.detectedIssues.length ? estimate.detectedIssues.join(", ") : "None flagged"}</p>
             </div>
 
             <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-amber-700">Fallback Used</p>
-              <p className="mt-1 text-sm font-semibold text-amber-900">{estimate.fallbackUsed ? "Yes" : "No"}</p>
+              <p className="text-xs uppercase tracking-wide text-amber-700">Grading Status</p>
+              <p className="mt-1 text-sm font-semibold text-amber-900">{result.gradingStatus}</p>
             </div>
           </div>
 
@@ -55,6 +56,28 @@ export function CardResultsStep({ result, onStartOver }: Props) {
               <p>Surface: {estimate.subscores.surface.toFixed(1)}</p>
             </div>
           </div>
+
+          {estimate.limitations.length ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
+              <p className="font-semibold">Limitations</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {estimate.limitations.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {showRetake && estimate.retakeGuidance.length ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+              <p className="font-semibold">Retake guidance (grading reliability is low)</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {estimate.retakeGuidance.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </>
       )}
 

@@ -21,6 +21,7 @@ infra/
 storage/
   originals/
   processed/
+  overlays/
   thumbnails/
 docker-compose.yml
 .env.example
@@ -74,22 +75,67 @@ README.md
 ### Wizard API route
 
 - Add-card wizard submits to `POST /api/cards/create-with-images`.
-- The route stores images and runs AI pre-grade estimation.
+- The route stores images and runs analyzer-first AI pre-grade estimation.
+- `gradingStatus` now returns one of: `estimated`, `fallback_estimated`, `needs_retake`, `failed`.
 
 ### Environment variables
 
 Set these in `.env`:
 
-- `ANALYZER_URL` (required fallback analyzer service URL)
+- `ANALYZER_URL` should be `http://analyzer:8000` for Docker-internal service calls.
 - `OPENAI_API_KEY` (optional, enables vision-model JSON grading)
 - `OPENAI_GRADING_MODEL` (optional, default `gpt-4.1-mini`)
+- `OPENAI_TIMEOUT_MS` (optional, default `15000`)
+- `OPENAI_MAX_RETRIES` (optional, default `2`)
 
-### Testing: grading is no longer hardcoded
+### Local debugging flow for grading reliability
 
-1. Upload at least two very different cards/images in the wizard.
-2. Confirm `estimatedGradeRange`, `confidence`, `detectedIssues`, and subscores differ between runs.
-3. Verify API response includes `fallbackUsed` so you can tell if fallback logic was used.
-4. Temporarily unset `ANALYZER_URL` and `OPENAI_API_KEY` to verify the route returns a grading error state (no fake 7.5-9 defaults).
+1. Start stack in background:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+2. Validate wiring:
+
+   ```bash
+   docker compose exec web printenv ANALYZER_URL
+   docker compose exec analyzer printenv STORAGE_ROOT
+   ```
+
+3. Verify analyzer accessibility from web container:
+
+   ```bash
+   docker compose exec web sh -lc "wget -qO- http://analyzer:8000/health"
+   ```
+
+4. Upload a card and confirm generated assets:
+
+   - Originals under `storage/originals`
+   - Processed under `storage/processed`
+   - Overlays under `storage/overlays`
+   - Served paths under `/api/images/processed/<file>` and `/api/images/overlays/<file>`
+
+5. Check grading observability:
+
+   ```bash
+   docker compose exec web npx prisma studio
+   ```
+
+   Inspect `GradingRun` rows for request IDs, provider/model, status, fallback usage, errors, and latency.
+
+6. Apply DB schema updates locally:
+
+   ```bash
+   docker compose exec web npx prisma migrate deploy
+   ```
+
+### Testing reminders
+
+1. Upload at least two different cards/images.
+2. Confirm `estimatedGradeRange`, `confidence`, `detectedIssues`, `retakeGuidance`, and subscores differ between runs.
+3. Validate fallback by simulating OpenAI unavailability while analyzer remains reachable.
+4. Ensure card creation still succeeds when grading status is `failed`.
 
 ## Notes
 

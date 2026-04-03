@@ -58,6 +58,8 @@ model CollectionItem {
   grading_quotes  GradingQuote[]
   roi_scenarios   RoiScenario[]
 
+  grading_runs   GradingRun[]
+
   @@index([card_id])
   @@index([ownership_status])
   @@map("collection_items")
@@ -149,4 +151,26 @@ model RoiScenario {
   @@index([collection_item_id])
   @@index([calculated_at])
   @@map("roi_scenarios")
+}
+
+
+model GradingRun {
+  id                 String          @id @default(uuid()) @db.Uuid
+  collection_item_id String?         @db.Uuid
+  request_id         String
+  provider           String
+  model              String?
+  status             String
+  fallback_used      Boolean         @default(false)
+  error_message      String?
+  latency_ms         Int?
+  created_at         DateTime        @default(now())
+
+  collection_item CollectionItem? @relation(fields: [collection_item_id], references: [id], onDelete: SetNull)
+
+  @@index([collection_item_id])
+  @@index([request_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("grading_runs")
 }
