@@ -11,21 +11,12 @@ const mimeTypeByExtension: Record<string, string> = {
   ".webp": "image/webp"
 };
 
-export async function GET(
-  request: Request,
-  { params }: { params: { kind: string; filename: string } }
-) {
-  const { kind, filename } = params;
-
-  if (!["originals", "thumbnails", "processed", "overlays"].includes(kind)) {
-    return new NextResponse("Not found", { status: 404 });
-  }
-
-  const filePath = path.join(storageRoot, kind, filename);
+export async function GET(request: Request, { params }: { params: { filename: string } }) {
+  const filePath = path.join(storageRoot, "overlays", params.filename);
 
   try {
     const file = await fs.readFile(filePath);
-    const ext = path.extname(filename).toLowerCase();
+    const ext = path.extname(params.filename).toLowerCase();
     const contentType = mimeTypeByExtension[ext] || "application/octet-stream";
 
     return new NextResponse(file, {

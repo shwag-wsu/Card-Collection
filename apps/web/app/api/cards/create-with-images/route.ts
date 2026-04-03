@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
@@ -55,7 +56,19 @@ async function storeExtraImages(collectionItemId: string, files: File[]) {
   return stored;
 }
 
+function parseEstimateRange(range: string) {
+  if (!range || range === "N/A") {
+    return { low: null as number | null, high: null as number | null };
+  }
+  const [low, high] = range.split(" - ").map((value) => Number(value));
+  return {
+    low: Number.isFinite(low) ? low : null,
+    high: Number.isFinite(high) ? high : null
+  };
+}
+
 export async function POST(request: Request) {
+  const requestId = randomUUID();
   const formData = await request.formData();
 
   const frontImage = formData.get("front_image");
@@ -110,6 +123,7 @@ export async function POST(request: Request) {
       }
     });
 
+    // Analyzer always runs first (when configured) and its output is passed into OpenAI prompt context.
     const analysis = await requestCardImageAnalysis({
       collection_item_id: item.id,
       front_image_path: storedFront.originalPath,
@@ -117,6 +131,7 @@ export async function POST(request: Request) {
     });
 
     const pregrade = await runAiPregradePipeline({
+      requestId,
       metadata: {
         year: card.year ?? undefined,
         brand: card.manufacturer ?? undefined,
@@ -131,50 +146,66 @@ export async function POST(request: Request) {
       analyzer: analysis
     });
 
-    if (!pregrade.ok) {
-      return NextResponse.json(
-        {
-          card: { id: card.id, player: card.player_name },
-          collectionItemId: item.id,
-          gradingError: pregrade.error,
-          aiPreGradeEstimate: null,
-          disclaimer:
-            "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
-        },
-        { status: 502 }
-      );
-    }
-
-    const estimate = pregrade.estimate;
-
-    const gradeEstimate = await prisma.gradeEstimate.create({
+    await prisma.gradingRun.create({
       data: {
         collection_item_id: item.id,
-        analyzer_version: pregrade.analyzer.analyzer_version ?? "ai-pregrade-v1",
-        image_quality_score: pregrade.analyzer.image_quality_score,
-        blur_flag: pregrade.analyzer.blur_flag ?? estimate.detectedIssues.includes("blur"),
-        glare_flag: pregrade.analyzer.glare_flag ?? estimate.detectedIssues.includes("glare"),
-        skew_flag: pregrade.analyzer.skew_flag ?? estimate.detectedIssues.includes("skew"),
-        centering_score: estimate.subscores.centering,
-        corners_score: estimate.subscores.corners,
-        edges_score: estimate.subscores.edges,
-        surface_score: estimate.subscores.surface,
-        predicted_grade_low: Number(estimate.estimatedGradeRange.split(" - ")[0]),
-        predicted_grade_high: Number(estimate.estimatedGradeRange.split(" - ")[1]),
-        confidence: estimate.confidence,
-        summary: estimate.rationale
+        request_id: requestId,
+        provider: pregrade.telemetry.provider,
+        model: pregrade.telemetry.model,
+        status: pregrade.telemetry.status,
+        fallback_used: pregrade.telemetry.fallbackUsed,
+        error_message: pregrade.telemetry.errorMessage,
+        latency_ms: pregrade.telemetry.latencyMs
       }
     });
+
+    let aiPreGradeEstimate = null;
+    let gradingStatus: "estimated" | "fallback_estimated" | "needs_retake" | "failed" = "failed";
+    let gradingError: string | null = null;
+    let gradeEstimateId: string | null = null;
+
+    if (pregrade.ok) {
+      const estimate = pregrade.estimate;
+      gradingStatus = estimate.gradingStatus;
+      const range = parseEstimateRange(estimate.estimatedGradeRange);
+
+      const gradeEstimate = await prisma.gradeEstimate.create({
+        data: {
+          collection_item_id: item.id,
+          analyzer_version: pregrade.analyzer.analyzer_version ?? "ai-pregrade-v2",
+          image_quality_score: pregrade.analyzer.image_quality_score,
+          blur_flag: pregrade.analyzer.blur_flag ?? estimate.detectedIssues.includes("blur"),
+          glare_flag: pregrade.analyzer.glare_flag ?? estimate.detectedIssues.includes("glare"),
+          skew_flag: pregrade.analyzer.skew_flag ?? estimate.detectedIssues.includes("skew"),
+          centering_score: estimate.subscores.centering,
+          corners_score: estimate.subscores.corners,
+          edges_score: estimate.subscores.edges,
+          surface_score: estimate.subscores.surface,
+          predicted_grade_low: range.low,
+          predicted_grade_high: range.high,
+          confidence: estimate.confidence,
+          summary: estimate.rationale
+        }
+      });
+
+      gradeEstimateId = gradeEstimate.id;
+      aiPreGradeEstimate = {
+        ...estimate,
+        confidence: `${Math.round(estimate.confidence * 100)}%`
+      };
+    } else {
+      gradingStatus = "failed";
+      gradingError = pregrade.error;
+    }
 
     return NextResponse.json({
       card: { id: card.id, player: card.player_name },
       collectionItemId: item.id,
-      aiPreGradeEstimate: {
-        ...estimate,
-        confidence: `${Math.round(estimate.confidence * 100)}%`
-      },
-      gradeEstimateId: gradeEstimate.id,
-      gradingError: null,
+      aiPreGradeEstimate,
+      gradeEstimateId,
+      gradingStatus,
+      gradingError,
+      requestId,
       disclaimer:
         "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
     });

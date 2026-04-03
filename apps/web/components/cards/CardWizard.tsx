@@ -21,11 +21,16 @@ export type CardWizardResult = {
   card: { id: string; player: string | null };
   collectionItemId: string;
   gradingError?: string | null;
+  gradingStatus: "estimated" | "fallback_estimated" | "needs_retake" | "failed";
   aiPreGradeEstimate: {
+    gradable: boolean;
+    predictedGrade: number | null;
     aiPreGradeEstimate: string;
     estimatedGradeRange: string;
     confidence: string | null;
     detectedIssues: string[];
+    limitations: string[];
+    retakeGuidance: string[];
     rationale: string | null;
     subscores: {
       centering: number;
@@ -34,6 +39,7 @@ export type CardWizardResult = {
       surface: number;
     };
     fallbackUsed: boolean;
+    gradingStatus: "estimated" | "fallback_estimated" | "needs_retake";
   } | null;
 };
 
