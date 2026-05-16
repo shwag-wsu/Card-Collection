@@ -74,6 +74,10 @@ export default async function CardDetailPage({ params }: { params: { id: string 
           roi_scenarios: {
             orderBy: { calculated_at: "desc" },
             take: 4
+          },
+          grading_runs: {
+            orderBy: { created_at: "desc" },
+            take: 1
           }
         }
       }
@@ -105,6 +109,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
             const latestSnapshot = item.price_snapshots[item.price_snapshots.length - 1];
             const latestQuote = item.grading_quotes[0];
             const scenarios = item.roi_scenarios;
+            const latestRun = item.grading_runs[0];
 
             return (
               <li key={item.id} className="space-y-3 rounded border p-3 text-sm">
@@ -149,6 +154,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                       <div className="rounded-md border border-indigo-100 bg-white p-2">
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{AI_PRE_GRADE_COPY.confidenceLabel}</p>
                         <p className="mt-1 text-lg font-semibold text-indigo-900">{formatConfidenceBadge(latestEstimate.confidence?.toString())}</p>
+                        <div className="mt-2 h-2 rounded-full bg-indigo-100"><div className="h-2 rounded-full bg-indigo-500" style={{ width: `${Math.max(4, Math.min(100, Math.round(Number(latestEstimate.confidence ?? 0) * 100)))}%` }} /></div>
                       </div>
                     </div>
 
@@ -170,6 +176,20 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                   </div>
                 )}
 
+
+
+                {latestRun && (
+                  <details className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                    <summary className="cursor-pointer font-medium text-slate-800">Latest grading diagnostics</summary>
+                    <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                      <p>Status: <span className="font-semibold">{latestRun.status}</span></p>
+                      <p>Model: <span className="font-semibold">{latestRun.model || "-"}</span></p>
+                      <p>Fallback used: <span className="font-semibold">{latestRun.fallback_used ? "yes" : "no"}</span></p>
+                      <p>Latency: <span className="font-semibold">{latestRun.latency_ms ?? "-"} ms</span></p>
+                      <p className="sm:col-span-2">Request ID: <code>{latestRun.request_id}</code></p>
+                    </div>
+                  </details>
+                )}
                 <div className="grid gap-3 lg:grid-cols-2">
                   <div className="space-y-2 rounded-md border bg-slate-50 p-3">
                     <h3 className="font-medium">Historical Raw Mid Price</h3>

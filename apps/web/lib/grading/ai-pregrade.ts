@@ -141,6 +141,59 @@ function withTimeoutSignal(timeoutMs: number) {
 
 type OpenAiParsedResult = Omit<AiPreGradeResult, "fallbackUsed" | "gradingStatus">;
 
+export const gradingResultJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "gradable",
+    "predictedGrade",
+    "estimatedGradeRange",
+    "confidence",
+    "detectedIssues",
+    "limitations",
+    "retakeGuidance",
+    "rationale",
+    "subscores"
+  ],
+  properties: {
+    gradable: { type: "boolean" },
+    predictedGrade: { type: ["number", "null"], minimum: 1, maximum: 10 },
+    estimatedGradeRange: { type: "string" },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    detectedIssues: { type: "array", items: { type: "string" } },
+    limitations: { type: "array", items: { type: "string" } },
+    retakeGuidance: { type: "array", items: { type: "string" } },
+    rationale: { type: "string" },
+    subscores: {
+      type: "object",
+      additionalProperties: false,
+      required: ["centering", "corners", "edges", "surface"],
+      properties: {
+        centering: { type: "number", minimum: 1, maximum: 10 },
+        corners: { type: "number", minimum: 1, maximum: 10 },
+        edges: { type: "number", minimum: 1, maximum: 10 },
+        surface: { type: "number", minimum: 1, maximum: 10 }
+      }
+    }
+  }
+} as const;
+
+function validateOpenAiParsedResult(value: unknown): value is OpenAiParsedResult {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.gradable !== "boolean") return false;
+  if (!(candidate.predictedGrade === null || typeof candidate.predictedGrade === "number")) return false;
+  if (typeof candidate.estimatedGradeRange !== "string") return false;
+  if (typeof candidate.confidence !== "number" || candidate.confidence < 0 || candidate.confidence > 1) return false;
+  const arrays = [candidate.detectedIssues, candidate.limitations, candidate.retakeGuidance];
+  if (!arrays.every((entry) => Array.isArray(entry) && entry.every((item) => typeof item === "string"))) return false;
+  if (typeof candidate.rationale !== "string") return false;
+  if (!candidate.subscores || typeof candidate.subscores !== "object") return false;
+  const subscores = candidate.subscores as Record<string, unknown>;
+  const keys = ["centering", "corners", "edges", "surface"] as const;
+  return keys.every((key) => typeof subscores[key] === "number");
+}
+
 async function callOpenAiPregrade(payload: {
   frontImagePath?: string;
   backImagePath?: string;
@@ -222,7 +275,14 @@ ${JSON.stringify(analyzerContext)}`;
         body: JSON.stringify({
           model: OPENAI_GRADING_MODEL,
           input: [{ role: "user", content }],
-          text: { format: { type: "json_object" } }
+          text: {
+            format: {
+              type: "json_schema",
+              name: "grading_result",
+              strict: true,
+              schema: gradingResultJsonSchema
+            }
+          }
         }),
         cache: "no-store",
         signal
@@ -237,8 +297,11 @@ ${JSON.stringify(analyzerContext)}`;
 
       const data = (await response.json()) as { output_text?: string };
       if (!data.output_text) return null;
-      const parsed = JSON.parse(data.output_text) as OpenAiParsedResult;
-      if (!parsed?.subscores) return null;
+      const parsed = JSON.parse(data.output_text) as unknown;
+      if (!validateOpenAiParsedResult(parsed)) {
+        console.warn(JSON.stringify({ level: "warn", event: "openai_pregrade_schema_validation_failed", request_id: payload.requestId, attempt }));
+        return null;
+      }
 
       const subscores = {
         centering: clampScore(Number(parsed.subscores.centering || 0)),

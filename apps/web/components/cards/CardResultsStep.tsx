@@ -6,6 +6,13 @@ type Props = {
   onStartOver: () => void;
 };
 
+const statusPillClasses: Record<string, string> = {
+  estimated: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  fallback_estimated: "border-sky-200 bg-sky-50 text-sky-700",
+  needs_retake: "border-amber-200 bg-amber-50 text-amber-800",
+  failed: "border-rose-200 bg-rose-50 text-rose-700"
+};
+
 export function CardResultsStep({ result, onStartOver }: Props) {
   const estimate = result.aiPreGradeEstimate;
   const showRetake = result.gradingStatus === "needs_retake" || (estimate && !estimate.gradable);
@@ -33,6 +40,7 @@ export function CardResultsStep({ result, onStartOver }: Props) {
             <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
               <p className="text-xs uppercase tracking-wide text-violet-700">Confidence</p>
               <p className="mt-1 text-2xl font-semibold text-violet-900">{estimate.confidence ?? "N/A"}</p>
+              <div className="mt-2 h-2 rounded-full bg-violet-100"><div className="h-2 rounded-full bg-violet-500" style={{ width: `${Math.max(4, Math.min(100, Number.parseInt(estimate.confidence || "0", 10)))}%` }} /></div>
             </div>
 
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
@@ -42,7 +50,7 @@ export function CardResultsStep({ result, onStartOver }: Props) {
 
             <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
               <p className="text-xs uppercase tracking-wide text-amber-700">Grading Status</p>
-              <p className="mt-1 text-sm font-semibold text-amber-900">{result.gradingStatus}</p>
+              <span className={`mt-1 inline-flex rounded-full border px-2 py-1 text-xs font-semibold ${statusPillClasses[result.gradingStatus] || statusPillClasses.failed}`}>{result.gradingStatus}</span>
             </div>
           </div>
 
@@ -82,7 +90,7 @@ export function CardResultsStep({ result, onStartOver }: Props) {
       )}
 
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade.
+        AI pre-grade estimate, not an official PSA grade.
       </p>
 
       <div className="flex flex-wrap gap-3">
