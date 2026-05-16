@@ -1,11 +1,20 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 
-COPY apps/web/package.json ./package.json
-RUN npm install
+COPY apps/web/package.json apps/web/package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 FROM node:20-bookworm-slim AS builder
 WORKDIR /app
+
+ARG APP_VERSION=dev
+ARG GIT_SHA=dev
+ARG BUILD_TIME=unknown
+ARG ANALYZER_VERSION=opencv-rules-v1.0.0
+ENV APP_VERSION=$APP_VERSION
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_TIME=$BUILD_TIME
+ENV ANALYZER_VERSION=$ANALYZER_VERSION
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
@@ -16,9 +25,17 @@ RUN npm run build
 
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
+ARG APP_VERSION=dev
+ARG GIT_SHA=dev
+ARG BUILD_TIME=unknown
+ARG ANALYZER_VERSION=opencv-rules-v1.0.0
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV APP_VERSION=$APP_VERSION
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_TIME=$BUILD_TIME
+ENV ANALYZER_VERSION=$ANALYZER_VERSION
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 

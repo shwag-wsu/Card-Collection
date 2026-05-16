@@ -23,12 +23,21 @@ services:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.analyzer
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+        GIT_SHA: ${GIT_SHA:-dev}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+        ANALYZER_VERSION: ${ANALYZER_VERSION:-opencv-rules-v1.0.0}
     restart: unless-stopped
     env_file:
       - .env
     environment:
       STORAGE_ROOT: ${STORAGE_ROOT}
       LOG_LEVEL: ${ANALYZER_LOG_LEVEL}
+      APP_VERSION: ${APP_VERSION:-dev}
+      GIT_SHA: ${GIT_SHA:-dev}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
+      ANALYZER_VERSION: ${ANALYZER_VERSION:-opencv-rules-v1.0.0}
     volumes:
       - ./storage:${STORAGE_ROOT}
     ports:
@@ -50,6 +59,11 @@ services:
     build:
       context: .
       dockerfile: infra/docker/Dockerfile.web
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+        GIT_SHA: ${GIT_SHA:-dev}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+        ANALYZER_VERSION: ${ANALYZER_VERSION:-opencv-rules-v1.0.0}
     restart: unless-stopped
     env_file:
       - .env
@@ -63,6 +77,11 @@ services:
       ANALYZER_URL: ${ANALYZER_URL}
       STORAGE_ROOT: ${STORAGE_ROOT}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+      OPENAI_GRADING_MODEL: ${OPENAI_GRADING_MODEL}
+      APP_VERSION: ${APP_VERSION:-dev}
+      GIT_SHA: ${GIT_SHA:-dev}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
+      ANALYZER_VERSION: ${ANALYZER_VERSION:-opencv-rules-v1.0.0}
     volumes:
       - ./storage:${STORAGE_ROOT}
     ports:

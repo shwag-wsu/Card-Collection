@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 app = FastAPI(title="Card Collection Analyzer", version="0.1.0")
 
-ANALYZER_VERSION = "opencv-rules-v1.0.0"
+ANALYZER_VERSION = os.getenv("ANALYZER_VERSION", "opencv-rules-v1.0.0")
 TARGET_WIDTH = 744
 TARGET_HEIGHT = 1040
 MIN_CONTOUR_AREA_RATIO = 0.15

@@ -1,6 +1,14 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+ARG APP_VERSION=dev
+ARG GIT_SHA=dev
+ARG BUILD_TIME=unknown
+ARG ANALYZER_VERSION=opencv-rules-v1.0.0
+ENV APP_VERSION=$APP_VERSION
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_TIME=$BUILD_TIME
+ENV ANALYZER_VERSION=$ANALYZER_VERSION
 COPY apps/analyzer/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY apps/analyzer/app ./app

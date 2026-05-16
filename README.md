@@ -55,6 +55,7 @@ README.md
 3. Build and start everything:
 
    ```bash
+   eval "$(bash ./scripts/build-env.sh)"
    docker compose up --build
    ```
 
@@ -62,6 +63,7 @@ README.md
 
    - Web app: http://localhost:3000
    - Analyzer health: http://localhost:8000/health
+   - Build info: http://localhost:3000/api/build-info
    - PostgreSQL: `localhost:5432`
 
 5. Stop services:
@@ -69,6 +71,13 @@ README.md
    ```bash
    docker compose down
    ```
+
+## Build metadata
+
+- `scripts/build-env.sh` exports `APP_VERSION`, `GIT_SHA`, and `BUILD_TIME` for Docker builds.
+- If those variables are not set, Docker Compose falls back to local development defaults.
+- The web footer displays the running version, git SHA, and UTC build time.
+- `GET /api/build-info` returns build metadata plus analyzer version and grading model.
 
 ## AI pre-grade + Pricing API notes
 
