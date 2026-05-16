@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-type CardMetadata = {
+export type CardMetadata = {
   year?: number;
   brand?: string;
   set?: string;
@@ -48,6 +48,7 @@ export type AiPreGradeResult = {
   };
   fallbackUsed: boolean;
   gradingStatus: GradingStatus;
+  rawAiResponse?: unknown;
 };
 
 export type GradingRunTelemetry = {
@@ -322,7 +323,8 @@ ${JSON.stringify(analyzerContext)}`;
         limitations: Array.isArray(parsed.limitations) ? parsed.limitations.slice(0, 8) : [],
         retakeGuidance: Array.isArray(parsed.retakeGuidance) ? parsed.retakeGuidance.slice(0, 8) : [],
         rationale: parsed.rationale || "AI visual analysis based on uploaded front/back images.",
-        subscores
+        subscores,
+        rawAiResponse: data
       };
     } catch (error) {
       clear();
@@ -384,7 +386,11 @@ export function buildFallbackEstimate(analyzer: AnalyzerResponse): AiPreGradeRes
       "Fallback estimate derived from analyzer image-quality and defect signals because direct AI grading was unavailable.",
     subscores,
     fallbackUsed: true,
-    gradingStatus: needsRetake ? "needs_retake" : "fallback_estimated"
+    gradingStatus: needsRetake ? "needs_retake" : "fallback_estimated",
+    rawAiResponse: {
+      source: "analyzer_fallback",
+      analyzer
+    }
   };
 }
 

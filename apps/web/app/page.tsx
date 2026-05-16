@@ -20,6 +20,11 @@ const toNumber = (value: number | string | null | undefined) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+};
+
 export default async function HomePage({ searchParams }: { searchParams?: SearchParams }) {
   const query = searchParams?.q?.trim() || "";
   const numericQuery = Number(query);
@@ -105,6 +110,16 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
             const scenarios = item.roi_scenarios;
             const bestScenario = scenarios.find((scenario) => scenario.grade_label === "PSA 10") ?? scenarios.find((scenario) => scenario.grade_label === "PSA 9") ?? scenarios[0];
             const confidence = toNumber(latestEstimate?.confidence?.toString());
+            const gradingStatus = latestEstimate?.grading_status ?? latestRun?.status ?? null;
+            const needsRetake = gradingStatus === "needs_retake" || latestEstimate?.gradable === false;
+            const detectedIssues = latestEstimate
+              ? [
+                  ...toStringArray(latestEstimate.detected_issues),
+                  latestEstimate.blur_flag ? "Blur detected" : null,
+                  latestEstimate.glare_flag ? "Glare detected" : null,
+                  latestEstimate.skew_flag ? "Perspective skew detected" : null
+                ].filter((issue, index, issues): issue is string => typeof issue === "string" && issues.indexOf(issue) === index)
+              : [];
 
             return (
               <article key={item.id} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -127,12 +142,26 @@ export default async function HomePage({ searchParams }: { searchParams?: Search
                   <p className="text-xs uppercase tracking-wide text-slate-500">{AI_PRE_GRADE_COPY.sectionTitle}</p>
                   {latestEstimate ? (
                     <>
-                      <p className="mt-1 font-semibold text-slate-900">{latestEstimate.predicted_grade_low?.toString() ?? "-"} to {latestEstimate.predicted_grade_high?.toString() ?? "-"}</p>
-                      <div className="mt-2 h-2 rounded-full bg-slate-200">
-                        <div className="h-2 rounded-full bg-violet-500" style={{ width: `${Math.max(3, Math.min(100, Math.round((confidence ?? 0) * 100)))}%` }} />
-                      </div>
-                      <p className="mt-1 text-xs text-slate-600">Confidence: {confidence !== null ? `${Math.round(confidence * 100)}%` : "N/A"}</p>
-                      {latestRun ? <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${statusClassMap[(latestRun.status as keyof typeof statusClassMap) || "failed"]}`}>{latestRun.status}</span> : null}
+                      {needsRetake ? (
+                        <div className="mt-2 space-y-2">
+                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">Needs better photos</span>
+                          {detectedIssues.length ? (
+                            <p className="text-xs text-amber-900">{detectedIssues.slice(0, 2).join(" · ")}</p>
+                          ) : (
+                            <p className="text-xs text-amber-900">See card detail for retake guidance.</p>
+                          )}
+                          <Link href={`/cards/${item.card.id}`} className="text-xs font-medium text-blue-600 hover:underline">Full guidance</Link>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="mt-1 font-semibold text-slate-900">{latestEstimate.predicted_grade_low?.toString() ?? "-"} to {latestEstimate.predicted_grade_high?.toString() ?? "-"}</p>
+                          <div className="mt-2 h-2 rounded-full bg-slate-200">
+                            <div className="h-2 rounded-full bg-violet-500" style={{ width: `${Math.max(3, Math.min(100, Math.round((confidence ?? 0) * 100)))}%` }} />
+                          </div>
+                          <p className="mt-1 text-xs text-slate-600">Confidence: {confidence !== null ? `${Math.round(confidence * 100)}%` : "N/A"}</p>
+                        </>
+                      )}
+                      {gradingStatus ? <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${statusClassMap[(gradingStatus as keyof typeof statusClassMap) || "failed"]}`}>{gradingStatus}</span> : null}
                       <p className="mt-2 text-xs text-slate-500">{AI_PRE_GRADE_COPY.disclaimer}</p>
                     </>
                   ) : (

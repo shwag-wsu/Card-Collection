@@ -43,7 +43,7 @@ export function ImageUploadForm({ itemId }: Props) {
       }
 
       setSuccess(
-        payload.analysis
+        payload.gradeEstimateId
           ? "Images uploaded. AI pre-grade estimate generated from uploaded images."
           : "Images uploaded successfully."
       );

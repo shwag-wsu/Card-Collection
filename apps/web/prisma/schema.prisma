@@ -104,6 +104,13 @@ model GradeEstimate {
   predicted_grade_high Decimal?       @db.Decimal(4, 1)
   confidence           Decimal?       @db.Decimal(5, 2)
   summary              String?
+  grading_status       String?
+  gradable             Boolean?
+  predicted_grade      Decimal?       @db.Decimal(4, 1)
+  detected_issues      Json?
+  limitations          Json?
+  retake_guidance      Json?
+  raw_ai_response      Json?
   created_at           DateTime       @default(now())
 
   collection_item CollectionItem @relation(fields: [collection_item_id], references: [id], onDelete: Cascade)

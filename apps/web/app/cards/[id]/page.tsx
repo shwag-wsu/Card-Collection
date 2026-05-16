@@ -11,6 +11,11 @@ const formatMoney = (value: number | string | null | undefined) => {
   return `$${amount.toFixed(2)}`;
 };
 
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+};
+
 function HistoricalPriceGraph({ snapshots }: { snapshots: { captured_at: Date; raw_mid: unknown }[] }) {
   const points = snapshots
     .map((snapshot) => ({ x: snapshot.captured_at, y: Number(snapshot.raw_mid) }))
@@ -110,6 +115,21 @@ export default async function CardDetailPage({ params }: { params: { id: string 
             const latestQuote = item.grading_quotes[0];
             const scenarios = item.roi_scenarios;
             const latestRun = item.grading_runs[0];
+            const gradingStatus = latestEstimate?.grading_status ?? latestRun?.status ?? null;
+            const needsRetake = gradingStatus === "needs_retake" || latestEstimate?.gradable === false;
+            const detectedIssues = latestEstimate
+              ? [
+                  ...toStringArray(latestEstimate.detected_issues),
+                  latestEstimate.blur_flag ? "Blur detected in uploaded image" : null,
+                  latestEstimate.glare_flag ? "Glare detected in uploaded image" : null,
+                  latestEstimate.skew_flag ? "Perspective skew detected" : null
+                ].filter((issue, index, issues): issue is string => typeof issue === "string" && issues.indexOf(issue) === index)
+              : [];
+            const limitations = latestEstimate ? toStringArray(latestEstimate.limitations) : [];
+            const retakeGuidance = latestEstimate ? toStringArray(latestEstimate.retake_guidance) : [];
+            const confidencePercent = latestEstimate?.confidence === null || latestEstimate?.confidence === undefined
+              ? "-"
+              : formatConfidenceBadge(latestEstimate.confidence.toString());
 
             return (
               <li key={item.id} className="space-y-3 rounded border p-3 text-sm">
@@ -134,43 +154,65 @@ export default async function CardDetailPage({ params }: { params: { id: string 
                 )}
 
                 {latestEstimate && (
-                  <div className="space-y-3 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-4 text-slate-700">
+                  <div className={`space-y-3 rounded-xl border p-4 text-slate-700 ${needsRetake ? "border-amber-300 bg-amber-50" : "border-indigo-200 bg-gradient-to-br from-indigo-50 to-white"}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-base font-semibold text-indigo-950">{AI_PRE_GRADE_COPY.sectionTitle}</h3>
-                      <span className="rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-xs font-medium text-indigo-700">
-                        {AI_PRE_GRADE_COPY.helperText}
+                      <h3 className={`text-base font-semibold ${needsRetake ? "text-amber-950" : "text-indigo-950"}`}>{AI_PRE_GRADE_COPY.sectionTitle}</h3>
+                      <span className={`rounded-full border bg-white px-2.5 py-1 text-xs font-medium ${needsRetake ? "border-amber-300 text-amber-800" : "border-indigo-200 text-indigo-700"}`}>
+                        {needsRetake ? "Needs retake" : AI_PRE_GRADE_COPY.helperText}
                       </span>
                     </div>
 
-                    <p className="text-sm text-slate-600">{AI_PRE_GRADE_COPY.resultsIntro}</p>
+                    {needsRetake ? (
+                      <div className="rounded-md border border-amber-300 bg-white p-3 text-sm text-amber-950">
+                        <p className="font-medium">Needs retake</p>
+                        <p className="mt-1">{latestEstimate.summary || "The uploaded photos are not clear enough for a reliable AI pre-grade estimate."}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-600">{AI_PRE_GRADE_COPY.resultsIntro}</p>
+                    )}
 
                     <div className="grid gap-2 text-sm md:grid-cols-2">
-                      <div className="rounded-md border border-indigo-100 bg-white p-2">
+                      <div className={`rounded-md border bg-white p-2 ${needsRetake ? "border-amber-200" : "border-indigo-100"}`}>
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{AI_PRE_GRADE_COPY.rangeLabel}</p>
-                        <p className="mt-1 text-lg font-semibold text-indigo-900">
+                        <p className={`mt-1 text-lg font-semibold ${needsRetake ? "text-amber-950" : "text-indigo-900"}`}>
                           {latestEstimate.predicted_grade_low?.toString() ?? "-"} to {latestEstimate.predicted_grade_high?.toString() ?? "-"}
                         </p>
                       </div>
-                      <div className="rounded-md border border-indigo-100 bg-white p-2">
+                      <div className={`rounded-md border bg-white p-2 ${needsRetake ? "border-amber-200" : "border-indigo-100"}`}>
                         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{AI_PRE_GRADE_COPY.confidenceLabel}</p>
-                        <p className="mt-1 text-lg font-semibold text-indigo-900">{formatConfidenceBadge(latestEstimate.confidence?.toString())}</p>
-                        <div className="mt-2 h-2 rounded-full bg-indigo-100"><div className="h-2 rounded-full bg-indigo-500" style={{ width: `${Math.max(4, Math.min(100, Math.round(Number(latestEstimate.confidence ?? 0) * 100)))}%` }} /></div>
+                        <p className={`mt-1 text-lg font-semibold ${needsRetake ? "text-amber-950" : "text-indigo-900"}`}>{confidencePercent}</p>
+                        <div className={`mt-2 h-2 rounded-full ${needsRetake ? "bg-amber-100" : "bg-indigo-100"}`}><div className={`h-2 rounded-full ${needsRetake ? "bg-amber-500" : "bg-indigo-500"}`} style={{ width: `${Math.max(4, Math.min(100, Math.round(Number(latestEstimate.confidence ?? 0) * 100)))}%` }} /></div>
                       </div>
                     </div>
 
-                    <div className="rounded-md border border-indigo-100 bg-white p-2 text-sm">
+                    <div className={`rounded-md border bg-white p-2 text-sm ${needsRetake ? "border-amber-200" : "border-indigo-100"}`}>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{AI_PRE_GRADE_COPY.conditionLabel}</p>
                       <p className="mt-1">{latestEstimate.summary || "No additional rationale available yet."}</p>
                     </div>
 
-                    <div className="rounded-md border border-indigo-100 bg-white p-2 text-sm">
+                    <div className={`rounded-md border bg-white p-2 text-sm ${needsRetake ? "border-amber-200" : "border-indigo-100"}`}>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{AI_PRE_GRADE_COPY.issuesLabel}</p>
                       <ul className="mt-1 list-inside list-disc space-y-1 text-slate-600">
-                        <li>{latestEstimate.blur_flag ? "Blur detected in uploaded image" : "No major blur detected"}</li>
-                        <li>{latestEstimate.glare_flag ? "Glare detected in uploaded image" : "No major glare detected"}</li>
-                        <li>{latestEstimate.skew_flag ? "Perspective skew detected" : "No major perspective skew detected"}</li>
+                        {detectedIssues.length ? detectedIssues.map((issue) => <li key={issue}>{issue}</li>) : <li>No major image issues detected</li>}
                       </ul>
                     </div>
+
+                    {needsRetake && (
+                      <div className="grid gap-2 text-sm md:grid-cols-2">
+                        <div className="rounded-md border border-amber-200 bg-white p-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Limitations</p>
+                          <ul className="mt-1 list-inside list-disc space-y-1 text-slate-600">
+                            {limitations.length ? limitations.map((item) => <li key={item}>{item}</li>) : <li>Photo quality limits confidence in condition details.</li>}
+                          </ul>
+                        </div>
+                        <div className="rounded-md border border-amber-200 bg-white p-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Retake Guidance</p>
+                          <ul className="mt-1 space-y-1 text-slate-600">
+                            {retakeGuidance.length ? retakeGuidance.map((item) => <li key={item}>[ ] {item}</li>) : <li>[ ] Retake front and back photos in even lighting.</li>}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
 
                     <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{AI_PRE_GRADE_COPY.disclaimer}</p>
                   </div>
