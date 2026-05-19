@@ -57,8 +57,8 @@ export function CardImagesStep({ details, isSubmitting, error, onBack, onSuccess
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold">Step 2 · Upload Images</h2>
-      <p className="mt-1 text-sm text-slate-500">Upload front/back photos and optional extra angles to generate an AI pre-grade estimate.</p>
+      <h2 className="text-xl font-semibold">Step 2 - Upload Images</h2>
+      <p className="mt-1 text-sm text-slate-500">Upload front/back photos and optional extra angles to validate the card and generate an AI pre-grade estimate.</p>
 
       <form onSubmit={onSubmit} className="mt-5 space-y-4">
         <div>

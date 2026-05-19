@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { storeImageForCollectionItem, validateImageFile } from "../../../../lib/image-storage";
 import { runCardGrading } from "../../../../lib/grading/run-card-grading";
+import { identifySportsCardFromImage, type CardIdentificationResult } from "../../../../lib/card-identification";
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT || path.join(process.cwd(), "storage");
 const EXTRA_DIR = path.join(STORAGE_ROOT, "originals");
@@ -12,6 +13,19 @@ const toNumber = (value: FormDataEntryValue | null) => {
   const parsed = Number(value?.toString());
   return Number.isNaN(parsed) ? undefined : parsed;
 };
+
+const formString = (formData: FormData, key: string) => formData.get(key)?.toString().trim() || undefined;
+
+const firstString = (...values: Array<string | number | null | undefined>) => {
+  for (const value of values) {
+    const normalized = value?.toString().trim();
+    if (normalized) return normalized;
+  }
+  return undefined;
+};
+
+const resolveYear = (formData: FormData, identification?: CardIdentificationResult) =>
+  toNumber(formData.get("year")) ?? identification?.fields.year ?? undefined;
 
 async function storeExtraImages(collectionItemId: string, files: File[]) {
   await fs.mkdir(EXTRA_DIR, { recursive: true });
@@ -41,18 +55,30 @@ export async function POST(request: Request) {
   }
 
   try {
+    validateImageFile(frontImage);
+    validateImageFile(backImage);
+
+    const identification = await identifySportsCardFromImage(frontImage);
+    if (identification.ok && !identification.result.isSportsCard && identification.result.confidence >= 0.65) {
+      return NextResponse.json(
+        { error: `The front image does not look like a sports card. ${identification.result.reason}` },
+        { status: 400 }
+      );
+    }
+
+    const identifiedFields = identification.ok ? identification.result.fields : undefined;
     const card = await prisma.card.create({
       data: {
         game: "Sports",
-        sport: formData.get("sport")?.toString() || "Unknown",
-        year: toNumber(formData.get("year")),
-        manufacturer: formData.get("brand")?.toString().trim() || undefined,
-        set_name: formData.get("set")?.toString().trim() || "Unknown Set",
-        card_number: formData.get("cardNumber")?.toString().trim() || undefined,
-        player_name: formData.get("player")?.toString().trim() || undefined,
-        notes: formData.get("notes")?.toString().trim() || undefined,
-        parallel: formData.get("variant")?.toString().trim() || undefined,
-        variation: formData.get("team")?.toString().trim() || undefined
+        sport: firstString(formString(formData, "sport"), identifiedFields?.sport) || "Unknown",
+        year: resolveYear(formData, identification.ok ? identification.result : undefined),
+        manufacturer: firstString(formString(formData, "brand"), identifiedFields?.brand),
+        set_name: firstString(formString(formData, "set"), identifiedFields?.set) || "Unknown Set",
+        card_number: firstString(formString(formData, "cardNumber"), identifiedFields?.cardNumber),
+        player_name: firstString(formString(formData, "player"), identifiedFields?.player),
+        notes: formString(formData, "notes"),
+        parallel: firstString(formString(formData, "variant"), identifiedFields?.variant),
+        variation: firstString(formString(formData, "team"), identifiedFields?.team)
       }
     });
 
@@ -108,6 +134,7 @@ export async function POST(request: Request) {
       gradingStatus: grading.gradingStatus,
       gradingError: grading.gradingError,
       requestId: grading.requestId,
+      identification: identification.ok ? identification.result : null,
       disclaimer:
         "This is an AI-generated pre-grade estimate based on uploaded images and is not an official PSA grade."
     });
